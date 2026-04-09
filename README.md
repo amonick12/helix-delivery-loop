@@ -33,13 +33,21 @@ Scout → Designer → Planner → Builder → Reviewer → Tester → Releaser
 
 | Command | Description |
 |---------|-------------|
+| Command | Description |
+|---------|-------------|
 | `/delivery-loop` | Auto-dispatch next agent(s) based on board state |
 | `/status` | Show board state, open PRs, active agents, stuck cards |
+| `/approve <pr>` | Approve a PR — adds `user-approved`, triggers Releaser |
+| `/reject <pr> <reason>` | Reject a PR — posts feedback, routes back to Builder |
 | `/deploy [pr]` | Upload PR branch to TestFlight |
 | `/gates <card>` | Run quality gates, auto-fix known false failures |
 | `/health` | Pipeline health check — labels, gates, state, conflicts |
 | `/sync-labels` | Sync approval labels between PRs and issues |
 | `/unstick <card>` | Diagnose and fix a stuck card |
+| `/rebase` | Rebase all open PRs on autodev after a merge |
+| `/cleanup` | Remove stale worktrees, branches, and artifacts |
+| `/audit` | Self-audit plugin for contradictions and stale references |
+| `/metrics` | Delivery stats — throughput, costs, cycle times |
 | `/new-card <desc>` | Create a new card from a description |
 | `/epic <desc>` | Create a multi-card epic with PRD |
 
