@@ -196,11 +196,27 @@ fi
 
 PR_BODY="## Approval Checklist
 
-- [ ] Builder gates passing (build, tests, lint, static analysis)
-- [ ] Code review: 0 P0/P1
-$(if [[ "$HAS_UI" != "No" ]]; then echo "- [ ] Visual QA pass
-- [ ] Before/after screenshots posted at same scroll position
-- [ ] Screen recordings posted (XCUITests, animations ON)"; fi)
+### Builder Gates
+- [ ] Build passes
+- [ ] Unit tests pass
+- [ ] Package tests pass
+- [ ] SwiftLint: 0 new errors
+$(if [[ "$HAS_UI" != "No" ]]; then echo "- [ ] UITest compilation passes
+- [ ] Snapshot tests pass (if swift-snapshot-testing added)"; fi)
+
+### Code Review (Reviewer)
+- [ ] Code review: 0 P0/P1 findings
+- [ ] CLAUDE.md compliance verified
+
+$(if [[ "$HAS_UI" != "No" ]]; then echo "### Visual QA (Tester)
+- [ ] XCUITests pass on simulator
+- [ ] Before/after screenshots in PR description (same view, same scroll position)
+- [ ] Screen recording posted (XCUITests, animations ON)
+- [ ] Visual QA pass — design system compliance verified"; fi)
+
+### Deploy & Merge
+- [ ] TestFlight build uploaded (if UI changes)
+- [ ] User approved
 
 ---
 
