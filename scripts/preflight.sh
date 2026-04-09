@@ -175,7 +175,6 @@ check_reviewer() {
 check_tester() {
   check_reviewer  # same base checks
 }
-}
 
 check_releaser() {
   # 1. Card In Review

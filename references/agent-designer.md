@@ -121,7 +121,7 @@ RESPONSE=$(curl -s -m 120 -X POST \
       "name": "generate_screen_from_text",
       "arguments": {
         "projectId": "'"$PROJECT_ID"'",
-        "prompt": "<YOUR PROMPT - always include: dark navy-to-black gradient background, indigo #5856D6 accent, white text, Inter font, glass cards with white 8% opacity background>",
+        "prompt": "<YOUR PROMPT - always include: dark navy-to-black gradient background (#081030 to #000514), indigo #5856D6 accent, white text, Inter font, frosted glass cards with ultraThinMaterial, 16pt corner radius, subtle 0.5pt border>",
         "deviceType": "MOBILE",
         "modelId": "GEMINI_3_1_PRO"
       }
