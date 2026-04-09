@@ -214,8 +214,7 @@ $(if [[ "$HAS_UI" != "No" ]]; then echo "### Visual QA (Tester)
 - [ ] Screen recording posted (XCUITests, animations ON)
 - [ ] Visual QA pass — design system compliance verified"; fi)
 
-### Deploy & Merge
-- [ ] TestFlight build uploaded (if UI changes)
+### Merge
 - [ ] User approved
 
 ---
