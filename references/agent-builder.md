@@ -78,6 +78,7 @@ Before committing, verify:
 - `accessibilityLabel` on all interactive elements
 - No hardcoded strings (localization)
 - New tests use Swift Testing (`import Testing`, `@Test`, `@Suite`, `#expect`) — never `XCTest`/`XCTestCase`
+- Snapshot tests for new/modified views (if HasUIChanges=Yes)
 - Documentation updated in the same commit (see Documentation section below)
 
 ## Documentation
@@ -101,6 +102,39 @@ If the card has `HasUIChanges=Yes`, the Builder writes XCUITests as part of impl
 4. Commit XCUITests with the implementation code
 
 The Reviewer/Tester still RUNS the XCUITests on the simulator and captures evidence.
+
+## Snapshot Tests (UI changes)
+
+For UI cards, the Builder adds snapshot tests using [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) to catch visual regressions in unit tests (no simulator needed).
+
+1. Add `swift-snapshot-testing` as a test dependency to the feature package if not already present:
+   ```swift
+   .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0")
+   // In test target:
+   .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
+   ```
+2. Write snapshot tests for each new/modified view in the package's `Tests/` directory:
+   ```swift
+   import SnapshotTesting
+   import SwiftUI
+   import Testing
+
+   @Suite struct MyViewSnapshotTests {
+       @Test func defaultState() {
+           let view = MyView(viewModel: .mock)
+           assertSnapshot(of: view, as: .image(layout: .device(config: .iPhone13Pro)))
+       }
+       @Test func emptyState() {
+           let view = MyView(viewModel: .emptyMock)
+           assertSnapshot(of: view, as: .image(layout: .device(config: .iPhone13Pro)))
+       }
+   }
+   ```
+3. First run generates reference images in `__Snapshots__/` — commit these with the feature code
+4. Subsequent runs diff against references — any visual change fails the test
+5. Snapshot tests run on macOS alongside unit tests — fast, no simulator boot
+
+Snapshot tests catch layout/font/color regressions early. The Tester's XCUITest screenshots on the real simulator remain the authoritative Visual QA evidence.
 
 ## Fake Data / Seed Data (MANDATORY for UI cards)
 
