@@ -212,7 +212,11 @@ $(if [[ "$HAS_UI" != "No" ]]; then echo "### Visual QA (Tester)
 - [ ] XCUITests pass on simulator
 - [ ] Before/after screenshots in PR description (same view, same scroll position)
 - [ ] Screen recording posted (XCUITests, animations ON)
-- [ ] Visual QA pass — design system compliance verified"; fi)
+- [ ] Screenshots match mockup (vision model comparison)
+- [ ] Design system compliance: glass cards, helixAccent, helixFont, dark gradient background
+- [ ] All acceptance criteria states visible in screenshots (empty + populated)
+- [ ] Text alignment correct (left-aligned, full-width cells)
+- [ ] No clipping, overflow, or overlapping elements"; fi)
 
 ### Merge
 - [ ] User approved
