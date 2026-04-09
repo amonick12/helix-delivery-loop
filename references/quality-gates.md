@@ -19,6 +19,8 @@ Builder runs all deterministic gates locally before pushing. Results are written
 | `package-tests` | `run-all-package-unit-tests.sh` | 0 failures (pre-existing signal 5 crash excluded) |
 | `swiftlint` | SwiftLint on changed files, diff-filtered | 0 new errors |
 | `static-checks` | Coverage baseline, @Model changes, TODO/FIXME | Advisory warnings, non-blocking |
+| `uitest-compilation` | `xcodebuild build-for-testing` on UITest files | Exit code 0 (skipped if no UITest files in diff) |
+| `snapshot-tests` | `swift-snapshot-testing` visual regression | 0 failures (skipped if no packages use it yet) |
 
 ## Reviewer + Tester Gates
 
@@ -58,7 +60,7 @@ Build number formula: `(issue_number * 100) + loop_count`.
 
 Every PR has a quality gate checklist managed by `update-pr-checklist.sh`:
 
-- [ ] Builder gates passing (build, tests, lint, static analysis)
+- [ ] Builder gates passing (build, tests, lint, UITest compilation, snapshot tests)
 - [ ] Code review: 0 P0/P1
 - [ ] Visual QA pass (if UI)
 

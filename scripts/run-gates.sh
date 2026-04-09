@@ -155,6 +155,47 @@ if [[ -d "$WORKTREE" ]]; then
 fi
 log_info "PASS: Static Checks (advisory)"
 
+# ── Gate 6: UITest compilation (UI cards only) ──────────
+log_info "Gate: UITest Compilation"
+UITEST_RESULT="skip"
+# Check if this branch has UITest files
+UITEST_FILES=$(cd "$WORKTREE" && git diff --name-only "origin/$BASE_BRANCH"...HEAD -- 'helix-appUITests/*.swift' 2>/dev/null || true)
+if [[ -n "$UITEST_FILES" ]]; then
+  UITEST_LOG="/tmp/gates-${CARD}-uitest-build.log"
+  if (cd "$WORKTREE" && xcodebuild build-for-testing \
+    -project helix-app.xcodeproj \
+    -scheme helix-appUITests \
+    -destination 'platform=macOS' \
+    > "$UITEST_LOG" 2>&1); then
+    UITEST_RESULT="pass"
+    log_info "PASS: UITest Compilation ($(echo "$UITEST_FILES" | wc -l | tr -d ' ') test files)"
+  else
+    UITEST_RESULT="fail"
+    log_error "FAIL: UITest Compilation — see $UITEST_LOG"
+  fi
+else
+  log_info "SKIP: UITest Compilation (no UITest files in diff)"
+fi
+
+# ── Gate 7: Snapshot tests (UI cards only) ──────────────
+log_info "Gate: Snapshot Tests"
+SNAPSHOT_RESULT="skip"
+# Check if any package has SnapshotTesting dependency
+SNAPSHOT_PACKAGES=$(cd "$WORKTREE" && grep -rl "swift-snapshot-testing\|SnapshotTesting" Packages/*/Package.swift 2>/dev/null || true)
+if [[ -n "$SNAPSHOT_PACKAGES" ]]; then
+  SNAPSHOT_LOG="/tmp/gates-${CARD}-snapshot.log"
+  # Run package tests which include snapshot tests
+  # (already covered by package-tests gate, but log explicitly)
+  SNAPSHOT_RESULT="$PKG_RESULT"
+  if [[ "$SNAPSHOT_RESULT" == "pass" ]]; then
+    log_info "PASS: Snapshot Tests (included in package tests)"
+  else
+    log_info "FAIL: Snapshot Tests (package tests failed)"
+  fi
+else
+  log_info "SKIP: Snapshot Tests (no packages use swift-snapshot-testing)"
+fi
+
 # ── Auto-fix pre-existing SIGTRAP false failure ─────────
 # HelixCognitionAgents has a known SIGTRAP crash that fails the combined
 # unit test run but is NOT caused by any PR. If unit_tests failed but
@@ -166,8 +207,11 @@ fi
 
 # ── Determine overall result ─────────────────────────────
 ALL_PASS=false
+# Core gates must pass. UITest compilation and snapshot tests must pass if they ran (skip is OK).
 if [[ "$BUILD_RESULT" == "pass" && "$UNIT_RESULT" == "pass" && \
-      "$PKG_RESULT" == "pass" && "$LINT_RESULT" == "pass" ]]; then
+      "$PKG_RESULT" == "pass" && "$LINT_RESULT" == "pass" && \
+      ("$UITEST_RESULT" == "pass" || "$UITEST_RESULT" == "skip") && \
+      ("$SNAPSHOT_RESULT" == "pass" || "$SNAPSHOT_RESULT" == "skip") ]]; then
   ALL_PASS=true
 fi
 
@@ -178,6 +222,8 @@ jq -n \
   --arg package_tests "$PKG_RESULT" \
   --arg swiftlint "$LINT_RESULT" \
   --arg static_checks "$STATIC_RESULT" \
+  --arg uitest_compilation "$UITEST_RESULT" \
+  --arg snapshot_tests "$SNAPSHOT_RESULT" \
   --argjson all_pass "$ALL_PASS" \
   --argjson card "$CARD" \
   --argjson pr "$PR_NUMBER" \
@@ -190,6 +236,8 @@ jq -n \
     package_tests: $package_tests,
     swiftlint: $swiftlint,
     static_checks: $static_checks,
+    uitest_compilation: $uitest_compilation,
+    snapshot_tests: $snapshot_tests,
     all_pass: $all_pass,
     commit: $commit,
     timestamp: (now | todate)
