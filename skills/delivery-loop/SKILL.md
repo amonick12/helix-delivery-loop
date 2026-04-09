@@ -16,7 +16,7 @@ Use the `/delivery-loop` command to invoke this skill. See the command for full 
 | **Scout** | Sonnet | #8 (idle, mode=scout) | Product strategy, PRDs, card creation |
 | **Maintainer** | Opus | #8 (idle, mode=maintainer) | Code integrity, bugs, arch violations |
 | **Designer** | Sonnet | #7 (Backlog, no HasUIChanges) | UI evaluation, Stitch mockups, moves to Ready |
-| **Planner** | Opus | #6 (Ready, WIP < 6) | Spec, failing tests (TDD red), draft PR |
+| **Planner** | Opus | #6 (Ready, WIP < 4) | Spec, failing tests (TDD red), draft PR |
 | **Builder** | Opus | #3/#5 (draft PR) | Implementation, quality gates, marks PR ready |
 | **Reviewer** | Haiku | #4a (ready PR, no code-review-approved) | Codex CLI code review, routes to Builder |
 | **Tester** | Sonnet | #4b (ready PR, code-review-approved, UI) | UITests + Visual QA, routes to Builder |
@@ -32,7 +32,7 @@ Use the `/delivery-loop` command to invoke this skill. See the command for full 
 - **All agent comments prefixed with `bot:`**
 - **Screenshots come from xcresult** — not manual simctl install (which fails)
 - **Onboarding cards use `empty` fixture** — not `seeded_20_entries` (bypasses onboarding)
-- **idb is available** for UI interaction alongside XCUITest
+- **idb is broken on iOS 26.2** — use XCUITest and xcrun simctl only
 
 ## Label flow
 
