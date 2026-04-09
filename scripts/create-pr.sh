@@ -212,11 +212,10 @@ $(if [[ "$HAS_UI" != "No" ]]; then echo "### Visual QA (Tester)
 - [ ] XCUITests pass on simulator
 - [ ] Before/after screenshots in PR description (same view, same scroll position)
 - [ ] Screen recording posted (XCUITests, animations ON)
-- [ ] Screenshots match mockup (vision model comparison)
-- [ ] Design system compliance: glass cards, helixAccent, helixFont, dark gradient background
-- [ ] All acceptance criteria states visible in screenshots (empty + populated)
-- [ ] Text alignment correct (left-aligned, full-width cells)
-- [ ] No clipping, overflow, or overlapping elements"; fi)
+- [ ] Vision API confirms screenshots match mockup
+- [ ] Vision API confirms design system compliance (glass cards, accent, font, gradient)
+- [ ] Vision API confirms all acceptance criteria states visible (empty + populated)
+- [ ] Vision API confirms layout correct (alignment, full-width, no clipping/overflow)"; fi)
 
 ### Merge
 - [ ] User approved
