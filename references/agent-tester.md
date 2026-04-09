@@ -60,9 +60,9 @@ The Tester **NEVER**:
 - Writes or modifies tests
 - Runs unit test scripts (run-unit-tests.sh, run-all-package-unit-tests.sh)
 
-## NEVER USE idb
+## idb
 
-Completely broken on iOS 26.2.
+idb is available for UI interaction, screenshots, and accessibility tree inspection alongside XCUITest.
 
 ## Visual QA Checklist
 

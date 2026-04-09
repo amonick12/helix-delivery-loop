@@ -32,7 +32,7 @@ Use the `/delivery-loop` command to invoke this skill. See the command for full 
 - **All agent comments prefixed with `bot:`**
 - **Screenshots come from xcresult** — not manual simctl install (which fails)
 - **Onboarding cards use `empty` fixture** — not `seeded_20_entries` (bypasses onboarding)
-- **idb is broken on iOS 26.2** — use XCUITest and xcrun simctl only
+- **idb is available** for UI interaction alongside XCUITest
 
 ## Label flow
 

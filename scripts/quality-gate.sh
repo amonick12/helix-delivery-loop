@@ -510,7 +510,7 @@ $diff
 Requirements:
 - Test ALL new user interactions
 - Record screen during test execution
-- Use XCUITest (not idb — broken on iOS 26.2)"
+- Use XCUITest or idb for UI interaction"
   gate_result 10 "Write XCUITests" true "llm_gate" "true" "prompt_length" "${#prompt}"
 }
 
