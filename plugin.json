@@ -1,0 +1,147 @@
+{
+  "name": "helix-delivery-loop",
+  "version": "3.1.0",
+  "description": "Continuous multi-agent feature delivery loop for the Helix iOS app. Eight agents (Scout, Maintainer, Designer, Planner, Builder, Reviewer, Tester, Releaser) operate on a GitHub Project board across a Kanban workflow.",
+  "author": {
+    "name": "Aaron Monick"
+  },
+  "keywords": ["ios", "delivery", "kanban", "ci-cd", "visual-qa"],
+  "settings": {
+    "project": {
+      "owner": {
+        "type": "string",
+        "default": "amonick12",
+        "description": "GitHub username or org that owns the repo"
+      },
+      "repo": {
+        "type": "string",
+        "default": "amonick12/helix",
+        "description": "Full owner/repo for gh commands"
+      },
+      "base_branch": {
+        "type": "string",
+        "default": "autodev",
+        "description": "Base branch for feature PRs"
+      }
+    },
+    "wip_limits": {
+      "in_progress": {
+        "type": "number",
+        "default": 4,
+        "description": "Max cards in In Progress column"
+      },
+      "in_review": {
+        "type": "number",
+        "default": 5,
+        "description": "Max cards in In Review column"
+      }
+    },
+    "models": {
+      "scout": {
+        "type": "string",
+        "default": "sonnet",
+        "description": "Model for Scout agent"
+      },
+      "designer": {
+        "type": "string",
+        "default": "sonnet",
+        "description": "Model for Designer agent"
+      },
+      "planner": {
+        "type": "string",
+        "default": "opus",
+        "description": "Model for Planner agent"
+      },
+      "builder": {
+        "type": "string",
+        "default": "opus",
+        "description": "Model for Builder agent (always opus)"
+      },
+      "reviewer": {
+        "type": "string",
+        "default": "haiku",
+        "description": "Model for Reviewer agent (Codex wrapper, haiku orchestrates)"
+      },
+      "tester": {
+        "type": "string",
+        "default": "sonnet",
+        "description": "Model for Tester agent (Visual QA)"
+      },
+      "releaser": {
+        "type": "string",
+        "default": "haiku",
+        "description": "Model for Releaser agent"
+      },
+      "maintainer": {
+        "type": "string",
+        "default": "opus",
+        "description": "Model for Maintainer agent (code integrity)"
+      }
+    },
+    "stitch": {
+      "project_id": {
+        "type": "string",
+        "default": "4588124996861941974",
+        "description": "Stitch project ID for mockup generation"
+      },
+      "design_system_id": {
+        "type": "string",
+        "default": "15540506800766488887",
+        "description": "Helix Dark design system asset ID in Stitch"
+      },
+      "gcp_project": {
+        "type": "string",
+        "default": "helix-491623",
+        "description": "GCP project for Stitch API auth"
+      }
+    },
+    "simulator": {
+      "device_name": {
+        "type": "string",
+        "default": "iPhone 17 Pro (Codex)",
+        "description": "Simulator device name"
+      },
+      "udid": {
+        "type": "string",
+        "default": "FAB8420B-A062-4973-812A-910024FA3CE1",
+        "description": "Simulator device UDID"
+      }
+    },
+    "idle_mode": {
+      "mode": {
+        "type": "string",
+        "default": "scout",
+        "description": "Which agent runs when the board is idle: scout (feature discovery) or maintainer (code integrity)"
+      }
+    },
+    "cron": {
+      "poll_interval": {
+        "type": "string",
+        "default": "*/5 * * * *",
+        "description": "Cron for polling releaser/builder/reviewer/tester work"
+      },
+      "scout_interval": {
+        "type": "string",
+        "default": "17 * * * *",
+        "description": "Cron for Scout discovery sweep"
+      }
+    }
+  },
+  "agents": [
+    "agents/scout.md",
+    "agents/designer.md",
+    "agents/planner.md",
+    "agents/builder.md",
+    "agents/reviewer.md",
+    "agents/tester.md",
+    "agents/releaser.md",
+    "agents/maintainer.md"
+  ],
+  "commands": [
+    "commands/delivery-loop.md",
+    "commands/status.md",
+    "commands/epic.md",
+    "commands/new-card.md"
+  ],
+  "hooks": "hooks/hooks.json"
+}

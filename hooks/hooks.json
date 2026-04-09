@@ -1,0 +1,88 @@
+{
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/register-crons.sh",
+          "timeout": 5000
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/release-simulator-lock.sh",
+          "timeout": 5000
+        },
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-cleanup.sh",
+          "timeout": 10000
+        }
+      ]
+    }
+  ],
+  "PreToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/kill-xcodebuild.sh",
+          "timeout": 10000
+        },
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-force-push-autodev.sh",
+          "timeout": 5000
+        },
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/enforce-simulator.sh",
+          "timeout": 5000
+        }
+      ]
+    },
+    {
+      "matcher": "Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-screenshot-write.sh",
+          "timeout": 5000
+        }
+      ]
+    },
+    {
+      "matcher": "Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-screenshot-write.sh",
+          "timeout": 5000
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/auto-comment-ts.sh",
+          "timeout": 5000
+        },
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/enforce-pr-base.sh",
+          "timeout": 10000
+        }
+      ]
+    }
+  ]
+}

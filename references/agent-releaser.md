@@ -1,0 +1,100 @@
+# Agent: Releaser
+
+## When it runs
+
+Dispatcher rule #2: card In Review with `user-approved` label. Also runs on cron polling for approval labels and new PR comments.
+
+## Two Modes
+
+The Releaser runs in two modes depending on what triggered it:
+
+### Mode A: TestFlight Deploy (user commented "deploy" on PR)
+1. Upload TestFlight build via `testflight-upload.sh`
+2. Post a **comment** (not PR body) with build number, TestFlight link, and "What to Test":
+   ```bash
+   gh pr comment $PR --repo amonick12/helix --body "bot: ## TestFlight Deploy
+
+   | Field | Value |
+   |-------|-------|
+   | **Build** | $BUILD_NUMBER |
+   | **Link** | [TestFlight]($TF_URL) |
+
+   ### What to Test
+   $ACCEPTANCE_CRITERIA"
+   ```
+3. Done — do NOT merge. User tests on device first.
+
+### Mode B: Merge (user added `user-approved` label)
+1. Check mergeability, rebase if needed
+2. Squash merge: `gh pr merge <N> --squash --delete-branch`
+3. Rebase all other open PRs via `rebase-open-prs.sh`
+3b. **Remove `blocked` labels** from PRs that depended on this one:
+   ```bash
+   gh pr list --state open --label blocked --json number --jq '.[].number' | while read pr; do
+     gh pr edit "$pr" --remove-label blocked
+   done
+   ```
+4. Verify autodev health via `run-gates.sh`:
+   ```bash
+   bash $SCRIPTS/run-gates.sh --card $CARD --pr $PR --worktree $REPO_ROOT
+   ```
+   The pre-existing HelixCognitionAgents SIGTRAP crash is excluded by the script (checks real failures only).
+5. If post-merge verification fails: execute Rollback Flow
+6. **Post-merge cleanup (REQUIRED):**
+   a. Remove worktree: `git worktree remove <path> --force; git worktree prune`
+   b. Delete screenshot release assets: `gh release delete-asset screenshots pr-<N>-*.png pr-<N>-*.mov --repo amonick12/helix` (skip if none exist)
+   c. Clear state: `bash state.sh clear <card-id>`
+   d. Delete artifacts: `rm -rf /tmp/helix-artifacts/<card-id>`
+   e. Delete DerivedData: `rm -rf /tmp/helix-wt/feature/<card-id>-*/DerivedData`
+   f. If any cleanup step fails, log warning and continue — never block Done transition
+7. Close issue: `gh issue close <card-id> --comment "Merged via PR #<N>."`
+8. Move card to Done and set MergeStatus:
+   ```bash
+   bash $SCRIPTS/move-card.sh --issue <card-id> --to Done
+   bash $SCRIPTS/set-field.sh <card-id> MergeStatus Merged
+   ```
+
+## Scripts used
+
+- `move-card.sh` — move card to In Review or Done
+- `set-field.sh` — set PR URL, ApprovalStatus, MergeStatus, ReworkReason
+- `read-board.sh` — read board state for cron polling
+- `rebase-open-prs.sh` — rebase all open PRs after merge
+- `run-gates.sh` — verify autodev health post-merge (handles pre-existing test crashes)
+- `learnings.sh` — check for repeated violations to suggest CLAUDE.md rules
+- `create-card.sh` — create hotfix card on rollback
+
+## What it hands off
+
+Card in Done. Merged to autodev. All other open PRs rebased. Worktree removed, local and remote feature branches deleted, screenshot release assets deleted, state file entry removed, artifact directory purged, DerivedData purged.
+
+## Cron Polling
+
+- **Scout:** every 30 minutes
+- **Releaser:** every 5 minutes (polls for `user-approved` label)
+- New PR comments on In Review cards route to Builder via dispatcher rule #1
+
+## Rollback Flow
+
+If post-merge verification fails:
+1. Immediately revert: `git revert HEAD --no-edit && git push`
+2. Create hotfix card via `create-card.sh` with P0 priority
+3. Post failure details on original PR
+4. Move original card back to In Progress
+5. Hotfix card goes to Ready — Builder picks it up next
+
+## Full XCUITest Regression
+
+This is the ONLY place the full XCUITest suite runs. Tester only runs new tests for the card being verified. Releaser runs ALL XCUITests after merge to catch regressions.
+
+## Self-Optimization
+
+After merge, check if any learning has appeared 3+ times:
+- Post CLAUDE.md rule suggestion as issue comment (never auto-edit CLAUDE.md)
+- User decides whether to add it
+
+## Simulator Usage
+
+- Releaser does not use the simulator for testing
+- TestFlight upload uses the build pipeline only, no simulator boot required
+- Never run TestFlight upload in parallel with Tester's simulator session
