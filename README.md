@@ -33,13 +33,12 @@ Scout → Designer → Planner → Builder → Reviewer → Tester → Releaser
 
 | Command | Description |
 |---------|-------------|
-| Command | Description |
-|---------|-------------|
 | `/delivery-loop` | Auto-dispatch next agent(s) based on board state |
 | `/status` | Show board state, open PRs, active agents, stuck cards |
 | `/approve <pr>` | Approve a PR — adds `user-approved`, triggers Releaser |
 | `/reject <pr> <reason>` | Reject a PR — posts feedback, routes back to Builder |
 | `/deploy [pr]` | Upload PR branch to TestFlight |
+| `/maintainer` | Run Maintainer agent — codebase health, refactors, tech debt |
 | `/gates <card>` | Run quality gates, auto-fix known false failures |
 | `/health` | Pipeline health check — labels, gates, state, conflicts |
 | `/sync-labels` | Sync approval labels between PRs and issues |

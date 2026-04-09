@@ -50,6 +50,7 @@ After run-tester.sh succeeds, review the screenshots it posted:
    - Convert PR to draft + add rework label: `gh pr ready --undo $PR && gh pr edit $PR --add-label rework --remove-label code-review-approved --remove-label visual-qa-approved --remove-label ai-approved`
 7. If all good:
    - Post text-only comment: `bot: ## Visual QA — PASS (verified)`
+   - Apply label: `gh pr edit $PR --repo amonick12/helix --add-label visual-qa-approved`
 
 ## CRITICAL: No Code Changes
 
