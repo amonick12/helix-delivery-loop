@@ -34,7 +34,9 @@ assert_set STATUS_DONE
 assert_set MODEL_SCOUT
 assert_set MODEL_BUILDER
 assert_set MODEL_PLANNER
-assert_set MODEL_VERIFIER
+assert_set MODEL_REVIEWER
+assert_set MODEL_TESTER
+assert_set MODEL_MAINTAINER
 assert_set MODEL_RELEASER
 
 # Cost rates

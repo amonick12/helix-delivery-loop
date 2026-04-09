@@ -81,13 +81,13 @@ COST_OUTPUT_HAIKU=4.00
 # Simulator agents need the device for screenshots, UITests, or TestFlight.
 # Non-simulator agents (Designer, Planner, Builder) can run in parallel.
 # Builder only uses xcodebuild build + unit tests on macOS destination.
-SIMULATOR_AGENTS="scout verifier releaser"
-NON_SIMULATOR_AGENTS="designer planner builder"
+SIMULATOR_AGENTS="scout tester releaser"
+NON_SIMULATOR_AGENTS="designer planner builder reviewer maintainer"
 
 needs_simulator() {
   local agent="$1"
   case "$agent" in
-    scout|verifier|releaser) return 0 ;;
+    scout|tester|releaser) return 0 ;;
     *) return 1 ;;
   esac
 }
