@@ -160,8 +160,13 @@ phase_prepare() {
   card_json=$(echo "$board_json" | jq --argjson id "$CARD" '[.cards[] | select(.issue_number == $id)] | .[0] // empty')
 
   if [[ -z "$card_json" || "$card_json" == "null" ]]; then
-    # In DRY_RUN mode with no board data, create a stub card
-    if [[ "$DRY_RUN" == "1" ]]; then
+    # Agents with __any__ column (scout, maintainer) can run with card 0 (no specific card)
+    local expected_cols
+    expected_cols=$(expected_column_for "$AGENT")
+    if [[ "$CARD" == "0" && "$expected_cols" == "__any__" ]]; then
+      card_json=$(jq -n '{issue_number: 0, title: "No card (sweep)", fields: {Status: "__any__"}, labels: [], recent_comments: []}')
+    elif [[ "$DRY_RUN" == "1" ]]; then
+      # In DRY_RUN mode with no board data, create a stub card
       card_json=$(jq -n --argjson id "$CARD" '{issue_number: $id, title: "Test Card", fields: {Status: "Ready"}, labels: [], recent_comments: []}')
     else
       log_error "Card #$CARD not found on board"

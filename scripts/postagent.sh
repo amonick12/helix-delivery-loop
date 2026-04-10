@@ -305,3 +305,4 @@ deregister_agent
 rotate_log
 
 log_info "postagent.sh: complete"
+exit 0

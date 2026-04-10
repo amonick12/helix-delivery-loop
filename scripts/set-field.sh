@@ -111,9 +111,22 @@ FIELD_DATA=$(gh api graphql -f query='
 FIELD_ID=$(echo "$FIELD_DATA" | jq -r --arg name "$FIELD_NAME" '.data.node.fields.nodes[] | select(.name == $name) | .id')
 
 if [[ -z "$FIELD_ID" || "$FIELD_ID" == "null" ]]; then
-  echo "Error: Field '$FIELD_NAME' not found on project. Available fields:" >&2
-  echo "$FIELD_DATA" | jq -r '.data.node.fields.nodes[] | select(.name != null) | .name' >&2
-  exit 1
+  # Fallback: check config.sh for known field IDs before failing
+  source "$SCRIPT_DIR/config.sh" 2>/dev/null || true
+  case "$FIELD_NAME" in
+    HasUIChanges)  FIELD_ID="${FIELD_ID_HAS_UI_CHANGES:-}" ;;
+    DesignURL)     FIELD_ID="${FIELD_ID_DESIGN_URL:-}" ;;
+    Branch)        FIELD_ID="${FIELD_ID_BRANCH:-}" ;;
+    "PR URL")      FIELD_ID="${FIELD_ID_PR_URL:-}" ;;
+    LoopCount)     FIELD_ID="${FIELD_ID_LOOP_COUNT:-}" ;;
+    BlockedReason) FIELD_ID="${FIELD_ID_BLOCKED_REASON:-}" ;;
+    ReworkReason)  FIELD_ID="${FIELD_ID_REWORK_REASON:-}" ;;
+  esac
+  if [[ -z "$FIELD_ID" || "$FIELD_ID" == "null" ]]; then
+    echo "Error: Field '$FIELD_NAME' not found on project. Available fields:" >&2
+    echo "$FIELD_DATA" | jq -r '.data.node.fields.nodes[] | select(.name != null) | .name' >&2
+    exit 1
+  fi
 fi
 
 # Build the value payload based on type
@@ -128,9 +141,20 @@ case "$FIELD_TYPE" in
     OPTION_ID=$(echo "$FIELD_DATA" | jq -r --arg name "$FIELD_NAME" --arg val "$FIELD_VALUE" \
       '.data.node.fields.nodes[] | select(.name == $name) | .options[] | select(.name == $val) | .id')
     if [[ -z "$OPTION_ID" || "$OPTION_ID" == "null" ]]; then
-      echo "Error: Option '$FIELD_VALUE' not found for field '$FIELD_NAME'. Available:" >&2
-      echo "$FIELD_DATA" | jq -r --arg name "$FIELD_NAME" '.data.node.fields.nodes[] | select(.name == $name) | .options[] | .name' >&2
-      exit 1
+      # Fallback: fetch options directly using the field ID
+      if [[ -n "$FIELD_ID" ]]; then
+        OPTION_ID=$(gh api graphql -f query='
+          query($fieldId: ID!) {
+            node(id: $fieldId) {
+              ... on ProjectV2SingleSelectField { options { id name } }
+            }
+          }
+        ' -f fieldId="$FIELD_ID" --jq ".data.node.options[] | select(.name == \"$FIELD_VALUE\") | .id" 2>/dev/null || echo "")
+      fi
+      if [[ -z "$OPTION_ID" || "$OPTION_ID" == "null" ]]; then
+        echo "Error: Option '$FIELD_VALUE' not found for field '$FIELD_NAME'." >&2
+        exit 1
+      fi
     fi
     MUTATION_VALUE="singleSelectOptionId: \"$OPTION_ID\""
     ;;

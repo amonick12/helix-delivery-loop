@@ -426,6 +426,40 @@ rule_5_draft_pr() {
   return 1
 }
 
+# ── Rule 5b: In Progress + planner handoff + no PR → Builder ──
+# Planner pushes a branch but doesn't always create a draft PR.
+# This rule catches the gap so the card doesn't stall.
+rule_5b_planner_handoff() {
+  local in_progress
+  in_progress=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "In progress")]' | sort_by_priority)
+  in_progress=$(filter_blocked "$in_progress")
+
+  while IFS= read -r card_json; do
+    [[ -z "$card_json" || "$card_json" == "null" ]] && continue
+    local card_id
+    card_id=$(echo "$card_json" | jq -r '.issue_number')
+    local pr_url
+    pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
+
+    # Only match cards with NO PR
+    [[ -n "$pr_url" && "$pr_url" != "null" && "$pr_url" != "" ]] && continue
+
+    # Check state for planner handoff
+    local handoff_from
+    handoff_from=$(echo "$STATE" | jq -r --arg c "$card_id" '.cards[$c].handoff_from // ""')
+    local last_agent
+    last_agent=$(echo "$STATE" | jq -r --arg c "$card_id" '.cards[$c].last_agent // ""')
+
+    if [[ "$handoff_from" == "planner" || "$last_agent" == "planner" ]]; then
+      if is_card_stuck "$card_id"; then continue; fi
+      decide "builder" "$card_id" "Card #$card_id: planner completed, no PR yet — routing to Builder" "$(model_for builder "$card_id")"
+      return 0
+    fi
+  done < <(echo "$in_progress" | jq -c '.[]')
+
+  return 1
+}
+
 # ── Rule 6: Ready → Planner (respects WIP) ──────────────
 rule_6_ready() {
   local wip
@@ -464,6 +498,47 @@ rule_7_needs_design() {
       card_id=$(echo "$card_json" | jq -r '.issue_number')
       local reason="Card #$card_id in Backlog, needs design evaluation"
       decide "designer" "$card_id" "$reason" "$(model_for designer)"
+      return 0
+    fi
+  done < <(echo "$backlog" | jq -c '.[]')
+
+  return 1
+}
+
+# ── Rule 7b: Epic in Backlog with user approval comment → Ready + Planner ──
+rule_7b_epic_approval() {
+  local backlog
+  backlog=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "Backlog")]' | sort_by_priority)
+
+  while IFS= read -r card_json; do
+    [[ -z "$card_json" || "$card_json" == "null" ]] && continue
+    local card_id
+    card_id=$(echo "$card_json" | jq -r '.issue_number')
+    local is_epic
+    is_epic=$(echo "$card_json" | jq 'any(.labels[]; . == "epic")')
+    [[ "$is_epic" != "true" ]] && continue
+
+    # Skip if already epic-approved (filter_blocked would catch this, but be explicit)
+    local has_approved_label
+    has_approved_label=$(echo "$card_json" | jq 'any(.labels[]; . == "epic-approved")')
+    [[ "$has_approved_label" == "true" ]] && continue
+
+    # Check recent comments for user approval
+    local has_approval
+    has_approval=$(echo "$card_json" | jq '
+      [.recent_comments[] | select(
+        .author != "github-actions[bot]" and
+        (.body | test("(?i)^\\s*(approved|approve|lgtm|go ahead|ship it|make the child cards|start working)"))
+      )] | length > 0
+    ' 2>/dev/null || echo "false")
+
+    if [[ "$has_approval" == "true" ]]; then
+      # Add epic-approved label and move to Ready
+      if [[ "$DRY_RUN" != "true" ]]; then
+        gh issue edit "$card_id" --repo "$REPO" --add-label "epic-approved" 2>/dev/null || true
+        bash "$SCRIPTS_DIR/move-card.sh" --issue "$card_id" --to "Ready" 2>/dev/null || true
+      fi
+      decide "planner" "$card_id" "Card #$card_id: epic approved by user comment — moved to Ready" "$(model_for planner)"
       return 0
     fi
   done < <(echo "$backlog" | jq -c '.[]')
@@ -529,6 +604,9 @@ is_card_stuck() {
 }
 
 # ── Main dispatch (single) ───────────────────────────────
+# Rules 1-5 and 7-8 operate on cards already in the pipeline — they run
+# regardless of WIP limits. Only rule 6 (pulling new cards from Ready) is
+# gated by WIP_IN_PROGRESS to avoid overloading the pipeline.
 dispatch() {
   # Pre-check: identify stuck agents before dispatching
   check_stuck_agents
@@ -539,8 +617,10 @@ dispatch() {
   rule_4a_reviewer && return 0
   rule_4b_tester && return 0
   rule_5_draft_pr && return 0
+  rule_5b_planner_handoff && return 0
   rule_6_ready && return 0
   rule_7_needs_design && return 0
+  rule_7b_epic_approval && return 0
   rule_8_idle && return 0
 }
 
@@ -661,6 +741,25 @@ dispatch_multi() {
     fi
   done < <(echo "$in_progress" | jq -c '.[]')
 
+  # Rule 5b: In Progress + planner handoff + no PR → Builder
+  while IFS= read -r card_json; do
+    [[ -z "$card_json" || "$card_json" == "null" ]] && continue
+    local card_id
+    card_id=$(echo "$card_json" | jq -r '.issue_number')
+    local pr_url
+    pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
+    [[ -n "$pr_url" && "$pr_url" != "null" && "$pr_url" != "" ]] && continue
+    # Check for planner handoff in state
+    local handoff_from
+    handoff_from=$(echo "$STATE" | jq -r --arg c "$card_id" '.cards[$c].handoff_from // ""')
+    local last_agent
+    last_agent=$(echo "$STATE" | jq -r --arg c "$card_id" '.cards[$c].last_agent // ""')
+    if [[ "$handoff_from" == "planner" || "$last_agent" == "planner" ]]; then
+      is_card_stuck "$card_id" && continue
+      add_decision "builder" "$card_id" "Card #$card_id: planner completed, no PR yet — routing to Builder" "$(model_for builder "$card_id")" || true
+    fi
+  done < <(echo "$in_progress" | jq -c '.[]')
+
   # Rule 6: Ready → Planner (respects WIP)
   local wip
   wip=$(in_progress_count)
@@ -694,6 +793,33 @@ dispatch_multi() {
       local card_id
       card_id=$(echo "$card_json" | jq -r '.issue_number')
       add_decision "designer" "$card_id" "Card #$card_id in Backlog, needs design evaluation" "$(model_for designer)" || true
+    fi
+  done < <(echo "$backlog" | jq -c '.[]')
+
+  # Rule 7b: Epic in Backlog with user approval comment → Ready + Planner
+  while IFS= read -r card_json; do
+    [[ -z "$card_json" || "$card_json" == "null" ]] && continue
+    local card_id
+    card_id=$(echo "$card_json" | jq -r '.issue_number')
+    local is_epic
+    is_epic=$(echo "$card_json" | jq 'any(.labels[]; . == "epic")')
+    [[ "$is_epic" != "true" ]] && continue
+    local has_approved_label
+    has_approved_label=$(echo "$card_json" | jq 'any(.labels[]; . == "epic-approved")')
+    [[ "$has_approved_label" == "true" ]] && continue
+    local has_approval
+    has_approval=$(echo "$card_json" | jq '
+      [.recent_comments[] | select(
+        .author != "github-actions[bot]" and
+        (.body | test("(?i)^\\s*(approved|approve|lgtm|go ahead|ship it|make the child cards|start working)"))
+      )] | length > 0
+    ' 2>/dev/null || echo "false")
+    if [[ "$has_approval" == "true" ]]; then
+      if [[ "$DRY_RUN" != "true" ]]; then
+        gh issue edit "$card_id" --repo "$REPO" --add-label "epic-approved" 2>/dev/null || true
+        bash "$SCRIPTS_DIR/move-card.sh" --issue "$card_id" --to "Ready" 2>/dev/null || true
+      fi
+      add_decision "planner" "$card_id" "Card #$card_id: epic approved by user comment — moved to Ready" "$(model_for planner)" || true
     fi
   done < <(echo "$backlog" | jq -c '.[]')
 

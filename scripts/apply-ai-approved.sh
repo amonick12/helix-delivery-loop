@@ -74,9 +74,21 @@ CHECKLIST_CHECKED=$(echo "$CHECKLIST_JSON" | jq -r '.checked')
 CHECKLIST_TOTAL=$(echo "$CHECKLIST_JSON" | jq -r '.total')
 UNCHECKED=$(echo "$CHECKLIST_JSON" | jq -r '.unchecked')
 
+# Check if code-review-approved label is present — if so, checklist is a soft gate
+HAS_CODE_REVIEW=false
+if [[ "$DRY_RUN" != "1" ]]; then
+  HAS_CODE_REVIEW=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json labels \
+    --jq 'any(.labels[]; .name == "code-review-approved")' 2>/dev/null || echo "false")
+fi
+
 if [[ "$ALL_CHECKED" != "true" ]]; then
-  log_warn "Checklist not complete: $CHECKLIST_CHECKED/$CHECKLIST_TOTAL checked"
-  log_warn "Unchecked items: $(echo "$UNCHECKED" | jq -r 'join(", ")')"
+  if [[ "$HAS_CODE_REVIEW" == "true" ]]; then
+    log_info "Checklist not fully checked ($CHECKLIST_CHECKED/$CHECKLIST_TOTAL) but code-review-approved present — treating as soft pass"
+    ALL_CHECKED="true"
+  else
+    log_warn "Checklist not complete: $CHECKLIST_CHECKED/$CHECKLIST_TOTAL checked"
+    log_warn "Unchecked items: $(echo "$UNCHECKED" | jq -r 'join(", ")')"
+  fi
 fi
 
 # ── Step 2: Check visual evidence (if UI card) ─────────
