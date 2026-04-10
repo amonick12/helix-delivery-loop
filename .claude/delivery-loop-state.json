@@ -9,8 +9,8 @@
       "last_comment_check": "2026-04-10T02:32:49Z"
     },
     "215": {
-      "last_agent": "planner",
-      "last_updated": "2026-04-10T04:48:55Z",
+      "last_agent": "reviewer",
+      "last_updated": "2026-04-10T18:31:34Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -35,9 +35,9 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "planner",
+      "handoff_from": "reviewer",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T04:48:56Z"
+      "last_comment_check": "2026-04-10T18:31:46Z"
     },
     "216": {
       "last_agent": "reviewer",
@@ -231,8 +231,8 @@
       "last_comment_check": "2026-04-10T18:07:31Z"
     },
     "219": {
-      "last_agent": "designer",
-      "last_updated": "2026-04-10T03:38:46Z",
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T18:25:37Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -241,9 +241,13 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "designer",
+      "handoff_from": "planner",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T03:38:46Z"
+      "last_comment_check": "2026-04-10T18:25:38Z",
+      "worktree": "/tmp/helix-wt/feature/219-insights-v2-pattern-theme",
+      "branch": "feature/219-insights-v2-pattern-theme",
+      "base_branch": "feature/212-insights-v2-toggle",
+      "spec_path": "docs/cards/219-insights-v2-pattern-theme/spec.md"
     },
     "220": {
       "last_agent": "planner",
@@ -419,18 +423,5 @@
       "last_comment_check": "2026-04-10T04:40:44Z"
     }
   },
-  "in_flight": [
-    {
-      "card": "217",
-      "agent": "builder",
-      "started_at": 1775843028,
-      "needs_simulator": false
-    },
-    {
-      "card": "218",
-      "agent": "builder",
-      "started_at": 1775843030,
-      "needs_simulator": false
-    }
-  ]
+  "in_flight": []
 }

@@ -78,9 +78,17 @@ log_info "Feature branch: $FEATURE_BRANCH"
 
 SCREENSHOT_URLS=""
 for file in $SCREENSHOTS; do
-  # Strip any absolute prefix so we have a repo-relative path
+  # The file MUST be committed on the feature branch for the URL to resolve.
+  # Reject absolute paths that aren't inside a known worktree — those indicate
+  # the Builder forgot to commit the screenshots to the branch (e.g. left them
+  # in /tmp/helix-uitest-screenshots/), which produces broken URLs.
   REL_PATH="$file"
-  REL_PATH="${REL_PATH#/tmp/helix-wt/feature/*/}"
+  if [[ "$REL_PATH" == /tmp/helix-wt/feature/*/* ]]; then
+    REL_PATH="${REL_PATH#/tmp/helix-wt/feature/*/}"
+  elif [[ "$REL_PATH" == /* ]]; then
+    log_error "Screenshot path '$file' is outside any feature worktree. The Builder must commit snapshots to the feature branch (e.g. __Snapshots__/ folder) before calling this script. Refusing to build broken URLs."
+    exit 1
+  fi
   REL_PATH="${REL_PATH#$(pwd)/}"
 
   # Use raw.githubusercontent URL with refs/heads/ prefix. This is the ONLY
