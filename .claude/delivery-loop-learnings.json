@@ -1,0 +1,49 @@
+{
+  "learnings": [
+    {
+      "id": 1,
+      "card": 198,
+      "agent": "builder",
+      "type": "pitfall",
+      "lesson": "OnboardingPrivacyView references advance()/back() methods never added to OnboardingViewModel - partially implemented feature shipped with broken code and tests",
+      "context": null,
+      "resolution": null,
+      "tags": [],
+      "created": "2026-04-09T20:36:24Z"
+    },
+    {
+      "id": 2,
+      "card": 199,
+      "agent": "builder",
+      "type": "pattern",
+      "lesson": "InsightsViewModel.loadLatestWeeklySummary uses try? on fetch violating CLAUDE.md error handling rule",
+      "context": null,
+      "resolution": null,
+      "tags": [],
+      "created": "2026-04-09T20:36:25Z"
+    },
+    {
+      "id": 3,
+      "card": 200,
+      "agent": "builder",
+      "type": "performance",
+      "lesson": "IntegrationCheckInService fetches ALL JournalEntry objects then filters in memory instead of using predicate+fetchCount",
+      "context": null,
+      "resolution": null,
+      "tags": [],
+      "created": "2026-04-09T20:36:25Z"
+    }
+  ],
+  "stats": {
+    "total": 3,
+    "by_type": {
+      "pattern": 1,
+      "performance": 1,
+      "pitfall": 1
+    },
+    "by_agent": {
+      "builder": 3
+    },
+    "most_common_tags": []
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "card": 216,
+  "runs": [
+    {
+      "agent": "designer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T03:32:21Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "planner",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T04:42:34Z",
+      "ended": null,
+      "duration_sec": 0
+    }
+  ],
+  "totals": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0,
+    "duration_sec": 0
+  }
+}

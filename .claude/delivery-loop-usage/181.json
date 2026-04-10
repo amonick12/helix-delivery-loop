@@ -1,0 +1,21 @@
+{
+  "card": 181,
+  "runs": [
+    {
+      "agent": "planner",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T03:23:43Z",
+      "ended": null,
+      "duration_sec": 0
+    }
+  ],
+  "totals": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0,
+    "duration_sec": 0
+  }
+}

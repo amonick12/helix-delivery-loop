@@ -58,44 +58,49 @@ done
 [[ -z "$RESULT" ]] && { log_error "--result PASS|FAIL required"; exit 1; }
 [[ -z "$SCREENSHOTS" ]] && { log_error "--screenshots required"; exit 1; }
 
-# ── Step 1: Upload screenshots to GitHub Release ──────
-log_info "Uploading screenshots to GitHub Release 'screenshots'..."
+# ── Step 1: Reference snapshot test images committed to the feature branch ──
+# The Builder is required to add SwiftUI snapshot tests for UI cards (see builder
+# agent docs). Those tests commit reference images to `__Snapshots__/*.png` on
+# the feature branch. We reference those directly via blob/?raw=true URLs — no
+# separate branch, no asset uploads, and they double as regression gates.
+#
+# The --screenshots arg should contain paths RELATIVE to the repo root on the
+# feature branch, e.g. "Packages/FeatureSettings/Tests/.../__Snapshots__/foo.png"
+log_info "Building screenshot URLs from feature branch paths..."
 
-# Ensure release exists
-gh release view screenshots --repo "$REPO" &>/dev/null || \
-  gh release create screenshots --repo "$REPO" --title "Screenshots" --notes "Visual evidence for PRs" --latest=false 2>/dev/null || true
+# Discover the feature branch from the PR
+FEATURE_BRANCH=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefName -q '.headRefName' 2>/dev/null || echo "")
+if [[ -z "$FEATURE_BRANCH" ]]; then
+  log_error "Could not determine feature branch for PR #${PR_NUMBER}"
+  exit 1
+fi
+log_info "Feature branch: $FEATURE_BRANCH"
 
 SCREENSHOT_URLS=""
 for file in $SCREENSHOTS; do
-  if [[ ! -f "$file" ]]; then
-    log_warn "Screenshot file not found: $file — skipping"
-    continue
-  fi
-  BASENAME=$(basename "$file")
-  ASSET_NAME="pr-${PR_NUMBER}-${BASENAME}"
-  gh release upload screenshots "$file" --repo "$REPO" --clobber 2>/dev/null && \
-    log_info "Uploaded: $ASSET_NAME" || \
-    log_warn "Failed to upload: $ASSET_NAME"
+  # Strip any absolute prefix so we have a repo-relative path
+  REL_PATH="$file"
+  REL_PATH="${REL_PATH#/tmp/helix-wt/feature/*/}"
+  REL_PATH="${REL_PATH#$(pwd)/}"
 
-  # Build URL using blob/?raw=true pattern (works for private repos)
-  SCREENSHOT_URLS="${SCREENSHOT_URLS}<img src=\"https://github.com/${REPO}/releases/download/screenshots/${ASSET_NAME}\" width=\"300\">\n"
+  # blob/?raw=true URL — proven to work in private repo PR markdown
+  ASSET_URL="https://github.com/${REPO}/blob/${FEATURE_BRANCH}/${REL_PATH}?raw=true"
+  SCREENSHOT_URLS="${SCREENSHOT_URLS}<img src=\"${ASSET_URL}\" width=\"300\">\n"
+  log_info "Referencing: ${REL_PATH}"
 done
 
-# Upload recording if provided
+# Handle recording (simulator recordings still need a host — use user-attachments
+# or a committed temp location; for now keep recording out of the evidence flow)
 RECORDING_URL=""
 if [[ -n "$RECORDING" && -f "$RECORDING" ]]; then
-  REC_BASENAME=$(basename "$RECORDING")
-  REC_ASSET="pr-${PR_NUMBER}-${REC_BASENAME}"
-  gh release upload screenshots "$RECORDING" --repo "$REPO" --clobber 2>/dev/null && \
-    log_info "Uploaded recording: $REC_ASSET"
-  RECORDING_URL="https://github.com/${REPO}/releases/download/screenshots/${REC_ASSET}"
+  log_warn "Recording support disabled in evidence flow — snapshot tests only"
 fi
 
 # ── Step 2: Get current PR body (everything above evidence section) ──
 CURRENT_BODY=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json body -q '.body' 2>/dev/null || echo "")
 
 # Strip any existing Visual QA section (everything from "## Visual QA" onwards)
-ORIGINAL_BODY=$(echo "$CURRENT_BODY" | sed '/^## Visual QA/,$d' | sed -e :a -e '/^\n*$/{$d;N;ba}')
+ORIGINAL_BODY=$(echo "$CURRENT_BODY" | awk '/^## Visual QA/{exit} {print}')
 
 # ── Step 3: Build new evidence section ────────────────
 EVIDENCE_SECTION="## Visual QA — ${RESULT}

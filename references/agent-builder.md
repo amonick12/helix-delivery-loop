@@ -103,7 +103,9 @@ If the card has `HasUIChanges=Yes`, the Builder writes XCUITests as part of impl
 
 The Reviewer/Tester still RUNS the XCUITests on the simulator and captures evidence.
 
-## Snapshot Tests (UI changes)
+## Snapshot Tests (MANDATORY for UI changes)
+
+**Snapshot tests are the PRIMARY source of visual evidence for PRs.** The `.png` files they commit to `__Snapshots__/` are referenced directly in the PR body via `blob/<feature-branch>/path?raw=true` URLs — no release uploads, no separate branch, no Tester-generated runtime screenshots needed. Every UI card MUST add snapshot tests covering every new/modified view and every meaningful state (empty, populated, loading, error).
 
 For UI cards, the Builder adds snapshot tests using [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) to catch visual regressions in unit tests (no simulator needed).
 
@@ -133,8 +135,14 @@ For UI cards, the Builder adds snapshot tests using [swift-snapshot-testing](htt
 3. First run generates reference images in `__Snapshots__/` — commit these with the feature code
 4. Subsequent runs diff against references — any visual change fails the test
 5. Snapshot tests run on macOS alongside unit tests — fast, no simulator boot
+6. **Post the snapshot images as PR visual evidence** using `update-pr-evidence.sh`:
+   ```bash
+   SNAPSHOTS=$(find Packages -type d -name "__Snapshots__" -path "*/Tests/*" | xargs -I {} find {} -name "*.png" -newer HEAD~1 2>/dev/null)
+   bash $SCRIPTS/update-pr-evidence.sh --pr $PR --card $CARD --result PASS --screenshots "$SNAPSHOTS"
+   ```
+   The script builds `blob/<feature-branch>/path?raw=true` URLs which render correctly in private repo PRs.
 
-Snapshot tests catch layout/font/color regressions early. The Tester's XCUITest screenshots on the real simulator remain the authoritative Visual QA evidence.
+Snapshot tests catch layout/font/color regressions early AND serve as the primary visual evidence in the PR description. The Tester agent only runs when a card has interactive behavior that snapshots can't capture (navigation flows, gesture-based interactions).
 
 ## Fake Data / Seed Data (MANDATORY for UI cards)
 

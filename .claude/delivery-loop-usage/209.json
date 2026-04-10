@@ -1,0 +1,61 @@
+{
+  "card": 209,
+  "runs": [
+    {
+      "agent": "designer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T03:02:13Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "planner",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T03:05:48Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T03:12:33Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T03:38:00Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T03:44:37Z",
+      "ended": null,
+      "duration_sec": 0
+    }
+  ],
+  "totals": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0,
+    "duration_sec": 0
+  }
+}

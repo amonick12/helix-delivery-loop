@@ -1,0 +1,330 @@
+{
+  "cards": {
+    "190": {
+      "handoff_ready": "true",
+      "last_updated": "2026-04-10T02:32:49Z",
+      "handoff_from": "releaser",
+      "handoff_error": "",
+      "last_agent": "releaser",
+      "last_comment_check": "2026-04-10T02:32:49Z"
+    },
+    "215": {
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T04:48:55Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:18Z",
+          "checkpoint_at": "2026-04-10T03:32:18Z"
+        },
+        "planner": {
+          "last_agent": "planner",
+          "last_updated": "2026-04-10T04:42:26Z",
+          "checkpoints": {
+            "designer": {
+              "last_agent": "designer",
+              "last_updated": "2026-04-10T03:32:18Z",
+              "checkpoint_at": "2026-04-10T03:32:18Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "designer",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T03:38:40Z",
+          "checkpoint_at": "2026-04-10T04:42:26Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "planner",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T04:48:56Z"
+    },
+    "216": {
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T04:49:45Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:22Z",
+          "checkpoint_at": "2026-04-10T03:32:22Z"
+        },
+        "planner": {
+          "last_agent": "planner",
+          "last_updated": "2026-04-10T04:42:37Z",
+          "checkpoints": {
+            "designer": {
+              "last_agent": "designer",
+              "last_updated": "2026-04-10T03:32:22Z",
+              "checkpoint_at": "2026-04-10T03:32:22Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "designer",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T03:38:42Z",
+          "checkpoint_at": "2026-04-10T04:42:37Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "planner",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T04:49:45Z"
+    },
+    "217": {
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T04:49:32Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:26Z",
+          "checkpoint_at": "2026-04-10T03:32:27Z"
+        },
+        "planner": {
+          "last_agent": "planner",
+          "last_updated": "2026-04-10T04:42:47Z",
+          "checkpoints": {
+            "designer": {
+              "last_agent": "designer",
+              "last_updated": "2026-04-10T03:32:26Z",
+              "checkpoint_at": "2026-04-10T03:32:27Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "designer",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T03:38:43Z",
+          "checkpoint_at": "2026-04-10T04:42:47Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "designer",
+      "handoff_error": "No worktree for card #217",
+      "last_comment_check": "2026-04-10T04:49:32Z",
+      "rework_target": "planner"
+    },
+    "218": {
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T04:49:19Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:31Z",
+          "checkpoint_at": "2026-04-10T03:32:31Z"
+        },
+        "planner": {
+          "last_agent": "planner",
+          "last_updated": "2026-04-10T04:42:59Z",
+          "checkpoints": {
+            "designer": {
+              "last_agent": "designer",
+              "last_updated": "2026-04-10T03:32:31Z",
+              "checkpoint_at": "2026-04-10T03:32:31Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "designer",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T03:38:45Z",
+          "checkpoint_at": "2026-04-10T04:42:59Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "planner",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T04:49:19Z"
+    },
+    "219": {
+      "last_agent": "designer",
+      "last_updated": "2026-04-10T03:38:46Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:36Z",
+          "checkpoint_at": "2026-04-10T03:32:36Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "designer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T03:38:46Z"
+    },
+    "220": {
+      "last_agent": "designer",
+      "last_updated": "2026-04-10T03:38:48Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:40Z",
+          "checkpoint_at": "2026-04-10T03:32:40Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "designer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T03:38:48Z"
+    },
+    "221": {
+      "last_agent": "designer",
+      "last_updated": "2026-04-10T03:38:49Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:44Z",
+          "checkpoint_at": "2026-04-10T03:32:44Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "designer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T03:38:49Z"
+    },
+    "222": {
+      "last_agent": "designer",
+      "last_updated": "2026-04-10T03:38:51Z",
+      "checkpoints": {
+        "designer": {
+          "last_agent": "designer",
+          "last_updated": "2026-04-10T03:32:48Z",
+          "checkpoint_at": "2026-04-10T03:32:49Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "designer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T03:38:51Z"
+    },
+    "212": {
+      "last_agent": "tester",
+      "last_updated": "2026-04-10T14:45:36Z",
+      "checkpoints": {
+        "planner": {
+          "last_agent": "planner",
+          "last_updated": "2026-04-10T03:47:58Z",
+          "checkpoint_at": "2026-04-10T03:47:58Z"
+        },
+        "builder": {
+          "last_agent": "builder",
+          "last_updated": "2026-04-10T04:05:25Z",
+          "checkpoints": {
+            "planner": {
+              "last_agent": "planner",
+              "last_updated": "2026-04-10T03:47:58Z",
+              "checkpoint_at": "2026-04-10T03:47:58Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "planner",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T03:51:15Z",
+          "checkpoint_at": "2026-04-10T04:05:25Z"
+        },
+        "tester": {
+          "last_agent": "tester",
+          "last_updated": "2026-04-10T14:45:36Z",
+          "checkpoints": {
+            "planner": {
+              "last_agent": "planner",
+              "last_updated": "2026-04-10T03:47:58Z",
+              "checkpoint_at": "2026-04-10T03:47:58Z"
+            },
+            "builder": {
+              "last_agent": "builder",
+              "last_updated": "2026-04-10T04:05:25Z",
+              "checkpoints": {
+                "planner": {
+                  "last_agent": "planner",
+                  "last_updated": "2026-04-10T03:47:58Z",
+                  "checkpoint_at": "2026-04-10T03:47:58Z"
+                }
+              },
+              "handoff_ready": "true",
+              "handoff_from": "planner",
+              "handoff_error": "",
+              "last_comment_check": "2026-04-10T03:51:15Z",
+              "checkpoint_at": "2026-04-10T04:05:25Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "reviewer",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T04:40:23Z",
+          "checkpoint_at": "2026-04-10T14:45:36Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "reviewer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T04:40:23Z"
+    },
+    "213": {
+      "last_agent": "reviewer",
+      "last_updated": "2026-04-10T04:39:30Z",
+      "checkpoints": {
+        "planner": {
+          "last_agent": "planner",
+          "last_updated": "2026-04-10T03:48:09Z",
+          "checkpoint_at": "2026-04-10T03:48:09Z"
+        },
+        "builder": {
+          "last_agent": "builder",
+          "last_updated": "2026-04-10T04:05:27Z",
+          "checkpoints": {
+            "planner": {
+              "last_agent": "planner",
+              "last_updated": "2026-04-10T03:48:09Z",
+              "checkpoint_at": "2026-04-10T03:48:09Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "planner",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T03:51:01Z",
+          "checkpoint_at": "2026-04-10T04:05:27Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "reviewer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T04:39:37Z"
+    },
+    "214": {
+      "last_agent": "reviewer",
+      "last_updated": "2026-04-10T04:40:36Z",
+      "checkpoints": {
+        "planner": {
+          "last_agent": "planner",
+          "last_updated": "2026-04-10T03:48:20Z",
+          "checkpoint_at": "2026-04-10T03:48:20Z"
+        },
+        "builder": {
+          "last_agent": "builder",
+          "last_updated": "2026-04-10T04:05:29Z",
+          "checkpoints": {
+            "planner": {
+              "last_agent": "planner",
+              "last_updated": "2026-04-10T03:48:20Z",
+              "checkpoint_at": "2026-04-10T03:48:20Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "planner",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T03:54:13Z",
+          "checkpoint_at": "2026-04-10T04:05:29Z"
+        }
+      },
+      "handoff_ready": "true",
+      "handoff_from": "reviewer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T04:40:44Z"
+    }
+  },
+  "in_flight": [
+    {
+      "card": "212",
+      "agent": "tester",
+      "started_at": 1775832336,
+      "needs_simulator": true
+    }
+  ]
+}
