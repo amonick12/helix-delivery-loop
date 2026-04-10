@@ -58,59 +58,57 @@ done
 [[ -z "$RESULT" ]] && { log_error "--result PASS|FAIL required"; exit 1; }
 [[ -z "$SCREENSHOTS" ]] && { log_error "--screenshots required"; exit 1; }
 
-# ── Step 1: Reference snapshot test images committed to the feature branch ──
-# The Builder is required to add SwiftUI snapshot tests for UI cards (see builder
-# agent docs). Those tests commit reference images to `__Snapshots__/*.png` on
-# the feature branch. We reference those directly via blob/?raw=true URLs — no
-# separate branch, no asset uploads, and they double as regression gates.
+# ── Step 1: Upload screenshots to catbox.moe ─────────────
+# catbox.moe is an anonymous image host with no rate limits. The returned URLs
+# are public and render in private repo PR markdown without any auth dance.
 #
-# The --screenshots arg should contain paths RELATIVE to the repo root on the
-# feature branch, e.g. "Packages/FeatureSettings/Tests/.../__Snapshots__/foo.png"
-log_info "Building screenshot URLs from feature branch paths..."
-
-# Discover the feature branch from the PR
-FEATURE_BRANCH=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefName -q '.headRefName' 2>/dev/null || echo "")
-if [[ -z "$FEATURE_BRANCH" ]]; then
-  log_error "Could not determine feature branch for PR #${PR_NUMBER}"
-  exit 1
-fi
-log_info "Feature branch: $FEATURE_BRANCH"
+# We accept both absolute paths (e.g. /tmp/helix-wt/feature/X/Packages/.../foo.png)
+# and repo-relative paths. The actual file content is uploaded — the path is
+# only used to find the file.
+log_info "Uploading screenshots to catbox.moe..."
 
 SCREENSHOT_URLS=""
 for file in $SCREENSHOTS; do
-  # The file MUST be committed on the feature branch for the URL to resolve.
-  # Reject absolute paths that aren't inside a known worktree — those indicate
-  # the Builder forgot to commit the screenshots to the branch (e.g. left them
-  # in /tmp/helix-uitest-screenshots/), which produces broken URLs.
-  REL_PATH="$file"
-  if [[ "$REL_PATH" == /tmp/helix-wt/feature/*/* ]]; then
-    REL_PATH="${REL_PATH#/tmp/helix-wt/feature/*/}"
-  elif [[ "$REL_PATH" == /* ]]; then
-    log_error "Screenshot path '$file' is outside any feature worktree. The Builder must commit snapshots to the feature branch (e.g. __Snapshots__/ folder) before calling this script. Refusing to build broken URLs."
-    exit 1
+  # Resolve to absolute path
+  FILE_PATH="$file"
+  if [[ "$FILE_PATH" != /* ]]; then
+    FILE_PATH="$(pwd)/$FILE_PATH"
   fi
-  REL_PATH="${REL_PATH#$(pwd)/}"
 
-  # Use raw.githubusercontent URL with refs/heads/ prefix. This is the ONLY
-  # form that works when branch names contain slashes (e.g. feature/213-foo).
-  #
-  # The bare form `raw.githubusercontent.com/owner/repo/branch/path` is
-  # ambiguous: GitHub's parser takes only the first path segment as the ref,
-  # so `feature/213-foo/path/file.png` is parsed as ref=feature + path=213-foo/...
-  # and returns 404.
-  #
-  # Using `refs/heads/<branch>` is unambiguous and works in private repo PR
-  # markdown via the authenticated user session.
-  ASSET_URL="https://raw.githubusercontent.com/${REPO}/refs/heads/${FEATURE_BRANCH}/${REL_PATH}"
-  SCREENSHOT_URLS="${SCREENSHOT_URLS}<img src=\"${ASSET_URL}\" width=\"300\">\n"
-  log_info "Referencing: ${REL_PATH}"
+  if [[ ! -f "$FILE_PATH" ]]; then
+    log_warn "Screenshot not found: $file — skipping"
+    continue
+  fi
+
+  # Upload to catbox.moe
+  UPLOAD_URL=$(curl -sF "reqtype=fileupload" -F "fileToUpload=@${FILE_PATH}" https://catbox.moe/user/api.php 2>/dev/null || echo "")
+
+  if [[ -z "$UPLOAD_URL" || "$UPLOAD_URL" != https://* ]]; then
+    log_warn "catbox upload failed for $file (got: '$UPLOAD_URL')"
+    continue
+  fi
+
+  # Verify the URL resolves
+  HTTP_CODE=$(curl -sI "$UPLOAD_URL" 2>/dev/null | head -1 | awk '{print $2}')
+  if [[ "$HTTP_CODE" != "200" ]]; then
+    log_warn "catbox URL returned HTTP $HTTP_CODE for $file: $UPLOAD_URL"
+    continue
+  fi
+
+  SCREENSHOT_URLS="${SCREENSHOT_URLS}<img src=\"${UPLOAD_URL}\" width=\"300\">\n"
+  log_info "Uploaded: $(basename "$FILE_PATH") → $UPLOAD_URL"
 done
 
-# Handle recording (simulator recordings still need a host — use user-attachments
-# or a committed temp location; for now keep recording out of the evidence flow)
+# Upload recording too if provided
 RECORDING_URL=""
 if [[ -n "$RECORDING" && -f "$RECORDING" ]]; then
-  log_warn "Recording support disabled in evidence flow — snapshot tests only"
+  RECORDING_URL=$(curl -sF "reqtype=fileupload" -F "fileToUpload=@${RECORDING}" https://catbox.moe/user/api.php 2>/dev/null || echo "")
+  if [[ "$RECORDING_URL" == https://* ]]; then
+    log_info "Uploaded recording: $RECORDING_URL"
+  else
+    log_warn "Recording upload failed"
+    RECORDING_URL=""
+  fi
 fi
 
 # ── Step 2: Get current PR body (everything above evidence section) ──

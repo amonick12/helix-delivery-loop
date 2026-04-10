@@ -250,8 +250,8 @@
       "spec_path": "docs/cards/219-insights-v2-pattern-theme/spec.md"
     },
     "221": {
-      "last_agent": "planner",
-      "last_updated": "2026-04-10T18:57:36Z",
+      "last_agent": "builder",
+      "last_updated": "2026-04-10T20:30:28Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -260,13 +260,13 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "planner",
+      "handoff_from": "builder",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T18:57:36Z"
+      "last_comment_check": "2026-04-10T20:30:28Z"
     },
     "222": {
-      "last_agent": "planner",
-      "last_updated": "2026-04-10T19:36:56Z",
+      "last_agent": "builder",
+      "last_updated": "2026-04-10T20:15:41Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -275,9 +275,9 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "planner",
+      "handoff_from": "builder",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T19:36:59Z"
+      "last_comment_check": "2026-04-10T20:15:41Z"
     },
     "212": {
       "last_agent": "tester",
