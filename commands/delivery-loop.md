@@ -55,6 +55,22 @@ Continuous feature delivery driven by the GitHub Project board. Eight phase-base
    ```
    Do this for EACH agent independently as it completes.
 
+   **CRITICAL — Post-agent column transitions (NEVER skip gates):**
+
+   | Agent Finished | Card HasUIChanges | Labels Applied | Move card to |
+   |---|---|---|---|
+   | Builder | any | (none yet) | **Keep In Progress** — Reviewer next |
+   | Reviewer (PASS) | **No** (non-UI) | `code-review-approved` + `ai-approved` | **In Review** — ready for user approval |
+   | Reviewer (PASS) | **Yes** (UI) | `code-review-approved` only | **Keep In Progress** — Tester must run next for visual QA |
+   | Reviewer (FAIL) | any | `rework` | **Keep In Progress** — Builder rework |
+   | Tester (PASS) | Yes | `visual-qa-approved` + `ai-approved` | **In Review** — ready for user approval |
+   | Tester (FAIL) | Yes | `rework` | **Keep In Progress** — Builder rework |
+   | Releaser | any | merged | **Done** |
+
+   **NEVER move a UI card to In Review after Reviewer passes.** UI cards require Tester visual QA (screenshots/recordings) before they're user-reviewable. Skipping Tester means the user approves a PR with no visual evidence.
+
+   **How to tell if a card is UI:** Check if the PR diff touches any `.swift` file under `Views/` or if the card body contains "HasUIChanges: Yes". Non-UI cards are pure logic/service/model changes.
+
 5. After ANY agent completes, immediately re-dispatch to check for new parallel-safe work:
    ```bash
    DISPATCH=$(bash "$SCRIPTS/dispatcher.sh" --dry-run --multi 2>/dev/null)
