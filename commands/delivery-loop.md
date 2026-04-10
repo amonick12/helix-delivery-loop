@@ -80,7 +80,23 @@ Continuous feature delivery driven by the GitHub Project board. Eight phase-base
 
 **Do NOT wait for user input between dispatches. Do NOT ask what to do. Just dispatch.**
 
-If the multi-dispatcher returns an empty decisions array (or scout with card 0 as the only decision), there's no actionable work — respond with "No actionable cards" and stop.
+**CONTINUOUS DISPATCH — NEVER GO IDLE:**
+
+The orchestrator must never respond with "waiting for completions" or "pipeline idle" while work exists. Between agent launches and user messages, aggressively re-dispatch. The rules are:
+
+1. **After every agent completion notification**, immediately re-run the dispatcher and launch any new actionable agents in the same response — do not just acknowledge and stop.
+2. **If the multi-dispatcher returns empty but the board has Ready cards**, fall back to single-dispatch mode and check each rule manually. Ready cards with pushed feature branches but no PR should route to Builder (rule 5 with the handoff-gap fix).
+3. **If the dispatcher still returns nothing**, manually prepare and launch agents for:
+   - Cards In Progress whose Planner has pushed a branch (Builder to create PR)
+   - Cards In Progress with ready PRs + code-review-approved but no visual-qa-approved (Tester)
+   - Cards In Review with `user-approved` label (Releaser)
+   - Cards in Ready that have dependencies satisfied (Planner/Builder for dependents can branch from parent)
+4. **Never say "waiting for completions".** If agents are running in background, launch additional parallel work (non-simulator agents, or work on different cards). The only reason to stop dispatching is:
+   - Every card on the board is In Review awaiting user approval
+   - All running agents are exclusive (simulator lock) and no non-simulator work exists
+5. **On every response** (including cron, user messages, completion notifications), the first action is always: check dispatcher → prepare agents → launch. Not "check status then report idle".
+
+Only respond with "No actionable cards" when: Backlog=0, Ready=0, all In Progress have running agents, all In Review have `user-approved` pending.
 
 **Fallback:** If `--multi` is not working, you can fall back to the single-dispatch mode:
    ```bash
