@@ -319,12 +319,5 @@
       "last_comment_check": "2026-04-10T04:40:44Z"
     }
   },
-  "in_flight": [
-    {
-      "card": "212",
-      "agent": "tester",
-      "started_at": 1775832336,
-      "needs_simulator": true
-    }
-  ]
+  "in_flight": []
 }

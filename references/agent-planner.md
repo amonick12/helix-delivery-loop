@@ -20,6 +20,18 @@ If the card has the `epic` label, the Planner MUST NOT write tests or a spec for
 
 **Never plan, spec, or build an epic as a single PR.** Epics are collections of cards, not cards themselves.
 
+### Sub-card testability rule (NON-NEGOTIABLE)
+
+**Every sub-card must be independently testable when its PR merges alone.** This means:
+
+1. **Never create ViewModel-only cards.** If a card ships a `*ViewModel`, it MUST also ship the View that consumes it and at least one snapshot test that renders the View. A ViewModel with no consuming View is dead code that can't be screenshotted and can't be verified by the user.
+2. **Never create stub-only router cards.** If a card ships a feature-flag or router that switches between two implementations, the `else` branch must show real content — not a `Text("coming soon")` placeholder. Fold the router into the first real feature card instead.
+3. **Bundle dependencies together.** If sub-card B requires a type from sub-card A to compile, fold them into one card or declare A a prerequisite the Planner must complete first. The builder for a dependent card must be able to branch from its prerequisite's feature branch.
+4. **Every sub-card must have user-observable behavior.** Ask: "If only this one PR merges to autodev, does the app behave differently in a way the user can see and test?" If no, the card is not ready.
+5. **Every UI sub-card must list the exact views and states** that will be snapshot-tested. The Planner writes failing snapshot tests as part of TDD red phase, so the Builder has a concrete signal when done.
+
+When in doubt, make cards larger rather than smaller. A single shippable feature in one PR is better than five interdependent "atomic" PRs that can't be independently verified.
+
 ## What it does (step by step)
 
 1. **Check for `epic` label first** — if epic, follow the Epic Rule above and stop

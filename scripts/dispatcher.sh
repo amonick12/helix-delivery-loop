@@ -178,6 +178,45 @@ in_review_count() {
   echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "In review")] | length'
 }
 
+# ── Resolve PR number for a card ─────────────────────────
+# Tries multiple sources, in order of preference:
+#   1. `PR URL` custom field on the board (if Builder set it)
+#   2. `gh pr list` searching by feature branch pattern `feature/<card-id>-*`
+#   3. GitHub's `closingIssuesReferences` / `issue development` link via gh api
+#
+# This fixes the Planner→Builder handoff gap where dispatcher rules 3/4a/4b/5
+# never fire because the custom field is empty.
+resolve_pr_for_card() {
+  local card_id="$1"
+  local card_json="$2"
+  local pr_num=""
+
+  # Source 1: board custom field
+  local pr_url
+  pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
+  if [[ -n "$pr_url" && "$pr_url" != "null" ]]; then
+    pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$' || true)
+    [[ -n "$pr_num" ]] && { echo "$pr_num"; return 0; }
+  fi
+
+  # Source 2: open PR whose head branch starts with feature/<card-id>-
+  pr_num=$(gh pr list --repo "$REPO" --state open --head "feature/${card_id}-" \
+    --json number --jq '.[0].number // empty' 2>/dev/null || true)
+  if [[ -z "$pr_num" ]]; then
+    # Try with wildcard since gh --head doesn't support glob
+    pr_num=$(gh pr list --repo "$REPO" --state open --search "head:feature/${card_id}-" \
+      --json number --jq '.[0].number // empty' 2>/dev/null || true)
+  fi
+  [[ -n "$pr_num" ]] && { echo "$pr_num"; return 0; }
+
+  # Source 3: issue linked PRs via gh api
+  pr_num=$(gh api "repos/$REPO/issues/$card_id/timeline" --paginate 2>/dev/null | \
+    jq -r '[.[] | select(.event == "cross-referenced") | .source.issue | select(.pull_request != null) | .number] | last // empty' 2>/dev/null || true)
+  [[ -n "$pr_num" ]] && { echo "$pr_num"; return 0; }
+
+  return 1
+}
+
 # ── Rule 1: Any active card with new user comment → Builder ──────
 # User PR comments requesting changes route to Builder (the agent that modifies code).
 # Reviewer/Tester are review-only and never touch code.
@@ -299,10 +338,8 @@ rule_3_rework() {
     [[ -z "$card_json" || "$card_json" == "null" ]] && continue
     local card_id
     card_id=$(echo "$card_json" | jq -r '.issue_number')
-    local pr_url pr_num
-    pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
-    [[ -z "$pr_url" || "$pr_url" == "null" ]] && continue
-    pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$' || true)
+    local pr_num
+    pr_num=$(resolve_pr_for_card "$card_id" "$card_json") || continue
     [[ -z "$pr_num" ]] && continue
 
     local pr_info
@@ -332,10 +369,8 @@ rule_4a_reviewer() {
     [[ -z "$card_json" || "$card_json" == "null" ]] && continue
     local card_id
     card_id=$(echo "$card_json" | jq -r '.issue_number')
-    local pr_url pr_num
-    pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
-    [[ -z "$pr_url" || "$pr_url" == "null" ]] && continue
-    pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$' || true)
+    local pr_num
+    pr_num=$(resolve_pr_for_card "$card_id" "$card_json") || continue
     [[ -z "$pr_num" ]] && continue
 
     local pr_info
@@ -348,7 +383,7 @@ rule_4a_reviewer() {
     # PR is ready, not approved, not yet code-reviewed → Reviewer
     if [[ "$is_draft" == "false" && "$has_ai_approved" == "false" && "$has_code_review" == "false" ]]; then
       if is_card_stuck "$card_id"; then continue; fi
-      decide "reviewer" "$card_id" "Card #$card_id has ready PR awaiting code review" "$(model_for reviewer "$card_id")"
+      decide "reviewer" "$card_id" "Card #$card_id has ready PR awaiting code review (PR #$pr_num)" "$(model_for reviewer "$card_id")"
       return 0
     fi
   done < <(echo "$in_progress" | jq -c '.[]')
@@ -367,10 +402,8 @@ rule_4b_tester() {
     [[ -z "$card_json" || "$card_json" == "null" ]] && continue
     local card_id
     card_id=$(echo "$card_json" | jq -r '.issue_number')
-    local pr_url pr_num
-    pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
-    [[ -z "$pr_url" || "$pr_url" == "null" ]] && continue
-    pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$' || true)
+    local pr_num
+    pr_num=$(resolve_pr_for_card "$card_id" "$card_json") || continue
     [[ -z "$pr_num" ]] && continue
 
     local pr_info
@@ -384,7 +417,7 @@ rule_4b_tester() {
     # PR is ready, code-reviewed, not yet visual-qa-approved → Tester
     if [[ "$is_draft" == "false" && "$has_ai_approved" == "false" && "$has_code_review" == "true" && "$has_vqa" == "false" ]]; then
       if is_card_stuck "$card_id"; then continue; fi
-      decide "tester" "$card_id" "Card #$card_id code review passed, awaiting Visual QA" "$(model_for tester "$card_id")"
+      decide "tester" "$card_id" "Card #$card_id code review passed, awaiting Visual QA (PR #$pr_num)" "$(model_for tester "$card_id")"
       return 0
     fi
   done < <(echo "$in_progress" | jq -c '.[]')
@@ -394,6 +427,7 @@ rule_4b_tester() {
 
 # ── Rule 5: In Progress + draft PR (no rework label) → Builder
 # Planner creates draft PR. Builder picks it up, implements, marks ready.
+# Also fires for In Progress cards with NO PR yet (Planner→Builder handoff gap).
 rule_5_draft_pr() {
   local in_progress
   in_progress=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "In progress")]' | sort_by_priority)
@@ -403,11 +437,21 @@ rule_5_draft_pr() {
     [[ -z "$card_json" || "$card_json" == "null" ]] && continue
     local card_id
     card_id=$(echo "$card_json" | jq -r '.issue_number')
-    local pr_url pr_num
-    pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
-    [[ -z "$pr_url" || "$pr_url" == "null" ]] && continue
-    pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$' || true)
-    [[ -z "$pr_num" ]] && continue
+    local pr_num
+    pr_num=$(resolve_pr_for_card "$card_id" "$card_json") || pr_num=""
+
+    if [[ -z "$pr_num" ]]; then
+      # No PR exists yet. If the Planner has pushed a feature branch, hand off to Builder.
+      # Check if feature/<card-id>-* branch exists on origin.
+      local branch_exists
+      branch_exists=$(git ls-remote --heads "git@github.com:${REPO}.git" "feature/${card_id}-*" 2>/dev/null | head -1 || true)
+      if [[ -n "$branch_exists" ]]; then
+        if is_card_stuck "$card_id"; then continue; fi
+        decide "builder" "$card_id" "Card #$card_id: Planner pushed feature branch, Builder to create PR and implement" "$(model_for builder "$card_id")"
+        return 0
+      fi
+      continue
+    fi
 
     local pr_info
     pr_info=$(gh pr view "$pr_num" --repo "$REPO" --json isDraft,labels --jq '{draft: .isDraft, rework: any(.labels[]; .name == "rework")}' 2>/dev/null || echo '{"draft":true,"rework":false}')
@@ -418,7 +462,7 @@ rule_5_draft_pr() {
     # Draft PR without rework label → Builder needs to implement
     if [[ "$is_draft" == "true" && "$is_rework" == "false" ]]; then
       if is_card_stuck "$card_id"; then continue; fi
-      decide "builder" "$card_id" "Card #$card_id has draft PR ready for implementation" "$(model_for builder "$card_id")"
+      decide "builder" "$card_id" "Card #$card_id has draft PR ready for implementation (PR #$pr_num)" "$(model_for builder "$card_id")"
       return 0
     fi
   done < <(echo "$in_progress" | jq -c '.[]')
@@ -696,21 +740,23 @@ dispatch_multi() {
     [[ -z "$card_json" || "$card_json" == "null" ]] && continue
     local card_id
     card_id=$(echo "$card_json" | jq -r '.issue_number')
-    local pr_url pr_num
-    pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
-    pr_num=""
-    if [[ -n "$pr_url" && "$pr_url" != "null" ]]; then
-      pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$' || true)
-    fi
-    # EC-6 FIX: If PR URL field missing, auto-detect PR from branch name
+    local pr_num=""
+    pr_num=$(resolve_pr_for_card "$card_id" "$card_json") || pr_num=""
+
+    # Planner→Builder handoff gap: no PR yet but Planner pushed a feature branch → Builder
     if [[ -z "$pr_num" ]]; then
-      pr_num=$(gh pr list --repo "$REPO" --head "feature/${card_id}-" --json number --jq '.[0].number // empty' 2>/dev/null || true)
-      if [[ -n "$pr_num" ]]; then
-        bash "$SCRIPTS_DIR/set-field.sh" --issue "$card_id" --field "PR URL" --value "https://github.com/$REPO/pull/$pr_num" 2>/dev/null || true
+      local branch_exists
+      branch_exists=$(git ls-remote --heads "git@github.com:${REPO}.git" "feature/${card_id}-*" 2>/dev/null | head -1 || true)
+      if [[ -n "$branch_exists" ]]; then
+        is_card_stuck "$card_id" && continue
+        add_decision "builder" "$card_id" "Card #$card_id: Planner pushed feature branch, Builder to create PR and implement" "$(model_for builder "$card_id")" || true
       fi
+      continue
     fi
-    [[ -z "$pr_num" ]] && continue
     is_card_stuck "$card_id" && continue
+
+    # Persist the discovered PR URL back to the card for faster future lookups
+    bash "$SCRIPTS_DIR/set-field.sh" --issue "$card_id" --field "PR URL" --value "https://github.com/$REPO/pull/$pr_num" 2>/dev/null || true
 
     local pr_info
     pr_info=$(gh pr view "$pr_num" --repo "$REPO" --json isDraft,labels --jq '{draft: .isDraft, rework: any(.labels[]; .name == "rework"), approved: any(.labels[]; .name == "tests-passed"), reviewed: any(.labels[]; .name == "code-review-approved"), vqa: any(.labels[]; .name == "visual-qa-approved")}' 2>/dev/null || echo '{"draft":true,"rework":false,"approved":false,"reviewed":false,"vqa":false}')
