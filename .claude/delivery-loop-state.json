@@ -103,8 +103,8 @@
       "rework_target": "planner"
     },
     "218": {
-      "last_agent": "planner",
-      "last_updated": "2026-04-10T04:49:19Z",
+      "last_agent": "builder",
+      "last_updated": "2026-04-10T17:23:40Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -126,6 +126,38 @@
           "handoff_error": "",
           "last_comment_check": "2026-04-10T03:38:45Z",
           "checkpoint_at": "2026-04-10T04:42:59Z"
+        },
+        "builder": {
+          "last_agent": "builder",
+          "last_updated": "2026-04-10T17:23:40Z",
+          "checkpoints": {
+            "designer": {
+              "last_agent": "designer",
+              "last_updated": "2026-04-10T03:32:31Z",
+              "checkpoint_at": "2026-04-10T03:32:31Z"
+            },
+            "planner": {
+              "last_agent": "planner",
+              "last_updated": "2026-04-10T04:42:59Z",
+              "checkpoints": {
+                "designer": {
+                  "last_agent": "designer",
+                  "last_updated": "2026-04-10T03:32:31Z",
+                  "checkpoint_at": "2026-04-10T03:32:31Z"
+                }
+              },
+              "handoff_ready": "true",
+              "handoff_from": "designer",
+              "handoff_error": "",
+              "last_comment_check": "2026-04-10T03:38:45Z",
+              "checkpoint_at": "2026-04-10T04:42:59Z"
+            }
+          },
+          "handoff_ready": "true",
+          "handoff_from": "planner",
+          "handoff_error": "",
+          "last_comment_check": "2026-04-10T04:49:19Z",
+          "checkpoint_at": "2026-04-10T17:23:40Z"
         }
       },
       "handoff_ready": "true",
@@ -319,5 +351,12 @@
       "last_comment_check": "2026-04-10T04:40:44Z"
     }
   },
-  "in_flight": []
+  "in_flight": [
+    {
+      "card": "218",
+      "agent": "builder",
+      "started_at": 1775841820,
+      "needs_simulator": false
+    }
+  ]
 }

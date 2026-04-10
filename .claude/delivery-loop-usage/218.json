@@ -20,6 +20,16 @@
       "started": "2026-04-10T04:42:56Z",
       "ended": null,
       "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-10T17:23:40Z",
+      "ended": null,
+      "duration_sec": 0
     }
   ],
   "totals": {

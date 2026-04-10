@@ -107,7 +107,22 @@ The Reviewer/Tester still RUNS the XCUITests on the simulator and captures evide
 
 **Snapshot tests are the PRIMARY source of visual evidence for PRs.** The `.png` files they commit to `__Snapshots__/` are referenced directly in the PR body via `blob/<feature-branch>/path?raw=true` URLs — no release uploads, no separate branch, no Tester-generated runtime screenshots needed. Every UI card MUST add snapshot tests covering every new/modified view and every meaningful state (empty, populated, loading, error).
 
-For UI cards, the Builder adds snapshot tests using [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) to catch visual regressions in unit tests (no simulator needed).
+**CRITICAL — iOS rendering, not macOS:**
+Snapshot tests MUST render views in iOS style. Do NOT use `NSHostingView` or macOS-only snapshot strategies — the resulting PNGs will show macOS chrome (menu bar fonts, AppKit buttons, macOS material effects) instead of actual iOS. The correct approach:
+
+1. Use the iOS-native strategy: `.image(layout: .device(config: .iPhone13Pro))` — requires compiling/running tests against an iOS destination.
+2. Run tests with the iPhone 17 Pro simulator destination, not the macOS destination:
+   ```bash
+   xcodebuild test \
+     -project helix-app.xcodeproj \
+     -scheme <package>Tests \
+     -destination 'id=FAB8420B-A062-4973-812A-910024FA3CE1' \
+     -only-testing:<package>Tests/<SnapshotTestClass>
+   ```
+3. The default `run-unit-tests.sh` runs on macOS for speed — DO NOT use it for snapshot tests. Use the iOS simulator destination explicitly.
+4. If tests fail with "'image' is unavailable on macOS" or similar, you're running on the wrong destination.
+
+For UI cards, the Builder adds snapshot tests using [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) to catch visual regressions (runs against iOS simulator, not macOS).
 
 1. Add `swift-snapshot-testing` as a test dependency to the feature package if not already present:
    ```swift
