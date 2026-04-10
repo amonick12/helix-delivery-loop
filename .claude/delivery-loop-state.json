@@ -40,8 +40,8 @@
       "last_comment_check": "2026-04-10T04:48:56Z"
     },
     "216": {
-      "last_agent": "planner",
-      "last_updated": "2026-04-10T04:49:45Z",
+      "last_agent": "reviewer",
+      "last_updated": "2026-04-10T18:05:24Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -66,13 +66,13 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "planner",
+      "handoff_from": "reviewer",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T04:49:45Z"
+      "last_comment_check": "2026-04-10T18:06:02Z"
     },
     "217": {
-      "last_agent": "builder",
-      "last_updated": "2026-04-10T17:43:48Z",
+      "last_agent": "reviewer",
+      "last_updated": "2026-04-10T18:00:43Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -130,14 +130,14 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "designer",
-      "handoff_error": "No worktree for card #217",
-      "last_comment_check": "2026-04-10T04:49:32Z",
+      "handoff_from": "reviewer",
+      "handoff_error": "",
+      "last_comment_check": "2026-04-10T18:00:55Z",
       "rework_target": "planner"
     },
     "218": {
-      "last_agent": "builder",
-      "last_updated": "2026-04-10T17:43:50Z",
+      "last_agent": "reviewer",
+      "last_updated": "2026-04-10T18:07:08Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -226,9 +226,9 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "planner",
+      "handoff_from": "reviewer",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T04:49:19Z"
+      "last_comment_check": "2026-04-10T18:07:31Z"
     },
     "219": {
       "last_agent": "designer",
@@ -246,8 +246,8 @@
       "last_comment_check": "2026-04-10T03:38:46Z"
     },
     "220": {
-      "last_agent": "designer",
-      "last_updated": "2026-04-10T03:38:48Z",
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T18:07:57Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -258,7 +258,10 @@
       "handoff_ready": "true",
       "handoff_from": "designer",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T03:38:48Z"
+      "last_comment_check": "2026-04-10T03:38:48Z",
+      "timer_start": 1775844477,
+      "timer_agent": "planner",
+      "timer_budget_min": 30
     },
     "221": {
       "last_agent": "designer",
