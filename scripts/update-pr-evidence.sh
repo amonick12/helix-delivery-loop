@@ -83,8 +83,12 @@ for file in $SCREENSHOTS; do
   REL_PATH="${REL_PATH#/tmp/helix-wt/feature/*/}"
   REL_PATH="${REL_PATH#$(pwd)/}"
 
-  # blob/?raw=true URL — proven to work in private repo PR markdown
-  ASSET_URL="https://github.com/${REPO}/blob/${FEATURE_BRANCH}/${REL_PATH}?raw=true"
+  # Use raw.githubusercontent URL form. The blob/?raw=true form is ambiguous
+  # when the branch name contains slashes (e.g. "feature/213-...") — GitHub
+  # cannot reliably parse where branch ends and path begins. The raw domain
+  # form is unambiguous and renders correctly in private repo PR markdown via
+  # the authenticated user session.
+  ASSET_URL="https://raw.githubusercontent.com/${REPO}/${FEATURE_BRANCH}/${REL_PATH}"
   SCREENSHOT_URLS="${SCREENSHOT_URLS}<img src=\"${ASSET_URL}\" width=\"300\">\n"
   log_info "Referencing: ${REL_PATH}"
 done
