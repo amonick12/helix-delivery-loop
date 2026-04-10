@@ -152,10 +152,17 @@ For UI cards, the Builder adds snapshot tests using [swift-snapshot-testing](htt
 5. Snapshot tests run on macOS alongside unit tests — fast, no simulator boot
 6. **Post the snapshot images as PR visual evidence** using `update-pr-evidence.sh`:
    ```bash
-   SNAPSHOTS=$(find Packages -type d -name "__Snapshots__" -path "*/Tests/*" | xargs -I {} find {} -name "*.png" -newer HEAD~1 2>/dev/null)
+   SNAPSHOTS=$(find Packages -type d -name "__Snapshots__" -path "*/Tests/*" | xargs -I {} find {} -name "*.png" 2>/dev/null | tr '\n' ' ')
    bash $SCRIPTS/update-pr-evidence.sh --pr $PR --card $CARD --result PASS --screenshots "$SNAPSHOTS"
    ```
-   The script builds `blob/<feature-branch>/path?raw=true` URLs which render correctly in private repo PRs.
+   **CRITICAL — Do NOT write your own image URLs in the PR body.** The script uses the `https://raw.githubusercontent.com/<owner>/<repo>/refs/heads/<branch>/<path>` form, which is the ONLY URL form that reliably resolves for private repo branches containing slashes. Any other form (`blob/<branch>/path?raw=true`, `raw.gh/.../feature/xxx/path`, absolute `/tmp/` paths) produces broken URLs. If you need to reference images manually, run the script or copy its exact URL format.
+
+   **BEFORE claiming success, verify URLs resolve:**
+   ```bash
+   FIRST_URL=$(gh pr view $PR --repo $REPO --json body -q '.body' | grep -oE 'https://raw[^")]+\.png' | head -1)
+   curl -sI -H "Authorization: token $(gh auth token)" "$FIRST_URL" | head -1
+   # Must print HTTP/2 200 — if not, the URLs are broken and must be fixed before finishing
+   ```
 
 Snapshot tests catch layout/font/color regressions early AND serve as the primary visual evidence in the PR description. The Tester agent only runs when a card has interactive behavior that snapshots can't capture (navigation flows, gesture-based interactions).
 

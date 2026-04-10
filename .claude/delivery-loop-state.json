@@ -9,8 +9,8 @@
       "last_comment_check": "2026-04-10T02:32:49Z"
     },
     "215": {
-      "last_agent": "reviewer",
-      "last_updated": "2026-04-10T18:31:34Z",
+      "last_agent": "builder",
+      "last_updated": "2026-04-10T19:45:05Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -35,9 +35,9 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "reviewer",
+      "handoff_from": "builder",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T18:31:46Z"
+      "last_comment_check": "2026-04-10T19:45:07Z"
     },
     "216": {
       "last_agent": "reviewer",
@@ -136,8 +136,8 @@
       "rework_target": "planner"
     },
     "218": {
-      "last_agent": "reviewer",
-      "last_updated": "2026-04-10T18:07:08Z",
+      "last_agent": "builder",
+      "last_updated": "2026-04-10T18:45:09Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -226,13 +226,13 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "reviewer",
+      "handoff_from": "builder",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T18:07:31Z"
+      "last_comment_check": "2026-04-10T18:45:18Z"
     },
     "219": {
-      "last_agent": "planner",
-      "last_updated": "2026-04-10T18:25:37Z",
+      "last_agent": "builder",
+      "last_updated": "2026-04-10T19:55:38Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -241,35 +241,17 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "planner",
+      "handoff_from": "builder",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T18:25:38Z",
+      "last_comment_check": "2026-04-10T19:55:38Z",
       "worktree": "/tmp/helix-wt/feature/219-insights-v2-pattern-theme",
       "branch": "feature/219-insights-v2-pattern-theme",
       "base_branch": "feature/212-insights-v2-toggle",
       "spec_path": "docs/cards/219-insights-v2-pattern-theme/spec.md"
     },
-    "220": {
-      "last_agent": "planner",
-      "last_updated": "2026-04-10T18:07:57Z",
-      "checkpoints": {
-        "designer": {
-          "last_agent": "designer",
-          "last_updated": "2026-04-10T03:32:40Z",
-          "checkpoint_at": "2026-04-10T03:32:40Z"
-        }
-      },
-      "handoff_ready": "true",
-      "handoff_from": "designer",
-      "handoff_error": "",
-      "last_comment_check": "2026-04-10T03:38:48Z",
-      "timer_start": 1775844477,
-      "timer_agent": "planner",
-      "timer_budget_min": 30
-    },
     "221": {
-      "last_agent": "designer",
-      "last_updated": "2026-04-10T03:38:49Z",
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T18:57:36Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -278,13 +260,13 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "designer",
+      "handoff_from": "planner",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T03:38:49Z"
+      "last_comment_check": "2026-04-10T18:57:36Z"
     },
     "222": {
-      "last_agent": "designer",
-      "last_updated": "2026-04-10T03:38:51Z",
+      "last_agent": "planner",
+      "last_updated": "2026-04-10T19:36:56Z",
       "checkpoints": {
         "designer": {
           "last_agent": "designer",
@@ -293,9 +275,9 @@
         }
       },
       "handoff_ready": "true",
-      "handoff_from": "designer",
+      "handoff_from": "planner",
       "handoff_error": "",
-      "last_comment_check": "2026-04-10T03:38:51Z"
+      "last_comment_check": "2026-04-10T19:36:59Z"
     },
     "212": {
       "last_agent": "tester",
@@ -421,6 +403,14 @@
       "handoff_from": "reviewer",
       "handoff_error": "",
       "last_comment_check": "2026-04-10T04:40:44Z"
+    },
+    "220": {
+      "handoff_ready": "true",
+      "last_updated": "2026-04-10T19:46:37Z",
+      "handoff_from": "reviewer",
+      "handoff_error": "",
+      "last_agent": "reviewer",
+      "last_comment_check": "2026-04-10T19:46:48Z"
     }
   },
   "in_flight": []
