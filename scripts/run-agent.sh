@@ -490,6 +490,25 @@ ${formatted_learnings}
 phase_finish() {
   local model="${FINISH_MODEL:-$(select_model)}"
 
+  # ── Step 9b: Unaddressed-comment gate ────────────────────
+  # Block finish if there are user comments on the PR after the last bot
+  # reply. Only applies to agents that work on PRs (Builder, Reviewer,
+  # Tester) and only on a successful run — failed runs are routed back
+  # to rework regardless.
+  if [[ "$DRY_RUN" != "1" && "$FAILED" != "true" \
+        && ("$AGENT" == "builder" || "$AGENT" == "reviewer" || "$AGENT" == "tester") ]]; then
+    local pr_url_unaddressed pr_num_unaddressed
+    pr_url_unaddressed=$("$SCRIPTS_DIR/read-board.sh" --card-id "$CARD" 2>/dev/null | jq -r '.cards[0].fields["PR URL"] // ""' || echo "")
+    pr_num_unaddressed=$(echo "$pr_url_unaddressed" | grep -oE '[0-9]+$' || true)
+    if [[ -n "$pr_num_unaddressed" && -x "$SCRIPTS_DIR/check-unaddressed-comments.sh" ]]; then
+      if ! bash "$SCRIPTS_DIR/check-unaddressed-comments.sh" --pr "$pr_num_unaddressed" 2>&1; then
+        log_error "Finish blocked by unaddressed-comment gate. $AGENT must address user comments on PR #$pr_num_unaddressed before finish."
+        bash "$SCRIPTS_DIR/state.sh" set "$CARD" rework_target "$AGENT" 2>/dev/null || true
+        FAILED=true
+      fi
+    fi
+  fi
+
   # ── Step 10: End tracking ───────────────────────────────
   if [[ "$DRY_RUN" != "1" && -n "$INPUT_TOKENS" && -n "$OUTPUT_TOKENS" ]]; then
     bash "$SCRIPTS_DIR/track-usage.sh" end \

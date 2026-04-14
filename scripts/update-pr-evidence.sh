@@ -58,6 +58,19 @@ done
 [[ -z "$RESULT" ]] && { log_error "--result PASS|FAIL required"; exit 1; }
 [[ -z "$SCREENSHOTS" ]] && { log_error "--screenshots required"; exit 1; }
 
+# ── Step 0: Verify each screenshot looks like a real device capture ─
+# Reject snapshot-test PNGs and standalone-view renders before uploading.
+# verify-screenshot-chrome.sh checks dimensions and bottom-strip color
+# variance; both must pass.
+SCRIPT_DIR_VPE="$(cd "$(dirname "$0")" && pwd)"
+if [[ -x "$SCRIPT_DIR_VPE/verify-screenshot-chrome.sh" ]]; then
+  if ! bash "$SCRIPT_DIR_VPE/verify-screenshot-chrome.sh" $SCREENSHOTS; then
+    log_error "Screenshot verification failed. Refusing to upload images that are not real device captures."
+    log_error "Re-capture with: xcrun simctl io booted screenshot <out.png> after launching the app."
+    exit 1
+  fi
+fi
+
 # ── Step 1: Upload screenshots to GitHub Release assets ───
 # GitHub Release assets are served authenticated for private repos, so they
 # render correctly in PR markdown for anyone with repo access. We upload to

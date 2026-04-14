@@ -121,6 +121,32 @@ else
   PKG_RESULT="skip"
 fi
 
+# ── Gate 3b: iOS test compilation ─────────────────────────
+# Build-for-testing on the iOS simulator destination compiles every test
+# file inside #if canImport(UIKit) blocks. macOS unit tests skip those
+# files entirely, so a concatenated/duplicated test class can pass macOS
+# tests but fail iOS compilation. This gate catches that.
+log_info "Gate: iOS Test Compilation"
+IOS_TEST_BUILD_RESULT="fail"
+IOS_TEST_BUILD_LOG="/tmp/gates-${CARD}-ios-test-build.log"
+if [[ "$BUILD_RESULT" == "pass" ]]; then
+  if (cd "$WORKTREE" && xcodebuild build-for-testing \
+      -project helix-app.xcodeproj -scheme helix-app \
+      -destination 'id=FAB8420B-A062-4973-812A-910024FA3CE1' \
+      -derivedDataPath DerivedData \
+      > "$IOS_TEST_BUILD_LOG" 2>&1); then
+    IOS_TEST_BUILD_RESULT="pass"
+    log_info "PASS: iOS Test Compilation"
+  else
+    log_error "FAIL: iOS Test Compilation — see $IOS_TEST_BUILD_LOG"
+    log_error "  This usually means a test file has concatenated/duplicate declarations"
+    log_error "  that macOS test runs skip via #if canImport(UIKit)."
+  fi
+else
+  log_warn "SKIP: iOS Test Compilation (build failed)"
+  IOS_TEST_BUILD_RESULT="skip"
+fi
+
 # ── Gate 4: SwiftLint ─────────────────────────────────────
 log_info "Gate: SwiftLint"
 LINT_RESULT="pass"
@@ -210,6 +236,7 @@ ALL_PASS=false
 # Core gates must pass. UITest compilation and snapshot tests must pass if they ran (skip is OK).
 if [[ "$BUILD_RESULT" == "pass" && "$UNIT_RESULT" == "pass" && \
       "$PKG_RESULT" == "pass" && "$LINT_RESULT" == "pass" && \
+      "$IOS_TEST_BUILD_RESULT" == "pass" && \
       ("$UITEST_RESULT" == "pass" || "$UITEST_RESULT" == "skip") && \
       ("$SNAPSHOT_RESULT" == "pass" || "$SNAPSHOT_RESULT" == "skip") ]]; then
   ALL_PASS=true
@@ -224,6 +251,7 @@ jq -n \
   --arg static_checks "$STATIC_RESULT" \
   --arg uitest_compilation "$UITEST_RESULT" \
   --arg snapshot_tests "$SNAPSHOT_RESULT" \
+  --arg ios_test_build "$IOS_TEST_BUILD_RESULT" \
   --argjson all_pass "$ALL_PASS" \
   --argjson card "$CARD" \
   --argjson pr "$PR_NUMBER" \
@@ -238,6 +266,7 @@ jq -n \
     static_checks: $static_checks,
     uitest_compilation: $uitest_compilation,
     snapshot_tests: $snapshot_tests,
+    ios_test_build: $ios_test_build,
     all_pass: $all_pass,
     commit: $commit,
     timestamp: (now | todate)
