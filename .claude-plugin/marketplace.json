@@ -1,0 +1,24 @@
+{
+  "name": "helix-loop",
+  "id": "helix-loop",
+  "owner": {
+    "name": "amonick12"
+  },
+  "metadata": {
+    "description": "Continuous multi-agent feature delivery loop for the Helix iOS app",
+    "version": "3.1.0"
+  },
+  "plugins": [
+    {
+      "name": "helix-delivery-loop",
+      "source": "./",
+      "description": "Eight agents (Scout, Maintainer, Designer, Planner, Builder, Reviewer, Tester, Releaser) operate on a GitHub Project board across a Kanban workflow.",
+      "version": "3.1.0",
+      "author": {
+        "name": "Aaron Monick"
+      },
+      "keywords": ["ios", "delivery", "kanban", "ci-cd", "visual-qa"],
+      "category": "workflow"
+    }
+  ]
+}
