@@ -67,6 +67,20 @@ When picking up `rework_target: builder`:
 5. Re-run tests, commit, push
 6. Signal handoff back to Reviewer/Tester
 
+## PR Size Cap (NON-NEGOTIABLE)
+
+**Every PR must be ≤500 lines (added + removed) excluding generated files and `__Snapshots__/*.png`.** Before opening the PR:
+
+```bash
+DIFF_LINES=$(cd $WORKTREE && git diff --shortstat "origin/$BASE_BRANCH...HEAD" -- ':!**/__Snapshots__/*.png' ':!**/*.pbxproj' ':!**/*.xcfilelist' | grep -oE '[0-9]+ insertion|[0-9]+ deletion' | grep -oE '[0-9]+' | awk '{s+=$1} END {print s+0}')
+if [[ "$DIFF_LINES" -gt 500 ]]; then
+  echo "PR diff is $DIFF_LINES lines (>500 cap). Stop and route back to Planner to split the card."
+  exit 1
+fi
+```
+
+If the diff exceeds 500 lines, do NOT open the PR. Post a comment on the card explaining the size, signal rework back to the Planner, and stop. The Planner is responsible for re-splitting the card. Never bypass this cap by opening the PR anyway — code review at >500 lines is unreliable.
+
 ## Self-Review Checklist
 
 Before committing, verify:

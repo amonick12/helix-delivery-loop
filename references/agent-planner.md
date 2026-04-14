@@ -31,8 +31,9 @@ If the card has the `epic` label, the Planner MUST NOT write tests or a spec for
 3. **Bundle dependencies together.** If sub-card B requires a type from sub-card A to compile, fold them into one card or declare A a prerequisite the Planner must complete first. The builder for a dependent card must be able to branch from its prerequisite's feature branch.
 4. **Every sub-card must have user-observable behavior.** Ask: "If only this one PR merges to autodev, does the app behave differently in a way the user can see and test?" If no, the card is not ready.
 5. **Every UI sub-card must list the exact views and states** that will be snapshot-tested. The Planner writes failing snapshot tests as part of TDD red phase, so the Builder has a concrete signal when done.
+6. **Hard cap: 500 lines per PR (added + removed, excluding generated files and `__Snapshots__/*.png`).** When sizing a sub-card, estimate the diff in lines and reject any breakdown where a single sub-card would exceed 500 lines. Snapshot PNGs and Xcode-generated files (`*.xcfilelist`, `*.pbxproj` synced groups) do not count toward the cap. If a single user-observable feature genuinely cannot fit under 500 lines, split it along a natural seam (data layer first, then UI; or one view at a time) and declare the dependency chain — but never ship a >500-line PR. The Builder MUST verify the diff size before opening the PR (`git diff --stat origin/autodev...HEAD`) and stop if over budget.
 
-When in doubt, make cards larger rather than smaller. A single shippable feature in one PR is better than five interdependent "atomic" PRs that can't be independently verified.
+When in doubt, make cards larger rather than smaller — but never larger than 500 lines. A single shippable feature in one PR is better than five interdependent "atomic" PRs that can't be independently verified, but a 1500-line PR is impossible to review and must be split.
 
 ## What it does (step by step)
 
