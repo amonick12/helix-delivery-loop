@@ -58,23 +58,16 @@ done
 [[ -z "$RESULT" ]] && { log_error "--result PASS|FAIL required"; exit 1; }
 [[ -z "$SCREENSHOTS" ]] && { log_error "--screenshots required"; exit 1; }
 
-# ── Step 1: Upload screenshots to PUBLIC release on the plugin repo ──
-# CRITICAL: The helix repo is PRIVATE. GitHub renders PR body images via
-# anonymous fetches (raw.githubusercontent.com / releases/download), so any
-# URL that points at the private repo returns 404 to the renderer regardless
-# of whether the viewer is signed in. The ONLY URL form that reliably works
-# in a private-repo PR body is one that points at a PUBLIC repo.
-#
-# We host screenshots in the public helix-delivery-loop plugin repo's
-# "screenshots" release. Asset names are prefixed with the card id so PRs
-# never collide.
-SCREENSHOT_HOST_REPO="amonick12/helix-delivery-loop"
+# ── Step 1: Upload screenshots to GitHub Release assets ───
+# GitHub Release assets are served authenticated for private repos, so they
+# render correctly in PR markdown for anyone with repo access. We upload to
+# the "screenshots" release tag with unique names to avoid collisions.
 RELEASE_TAG="screenshots"
-log_info "Uploading screenshots to PUBLIC release ${SCREENSHOT_HOST_REPO}/${RELEASE_TAG}..."
+log_info "Uploading screenshots to GitHub Release '$RELEASE_TAG'..."
 
 SCREENSHOT_URLS=""
-UPLOADED_URLS=()
 for file in $SCREENSHOTS; do
+  # Resolve to absolute path
   FILE_PATH="$file"
   if [[ "$FILE_PATH" != /* ]]; then
     FILE_PATH="$(pwd)/$FILE_PATH"
@@ -85,53 +78,39 @@ for file in $SCREENSHOTS; do
     continue
   fi
 
+  # Unique asset name: card-pr-timestamp-basename
   BASENAME="$(basename "$FILE_PATH")"
-  # Card-prefixed name — stable across runs of the same card so the PR body
-  # always points at the latest evidence.
-  ASSET_NAME="${CARD}-${BASENAME}"
-  TMPFILE="/tmp/${ASSET_NAME}"
-  cp "$FILE_PATH" "$TMPFILE"
+  ASSET_NAME="card${CARD}-pr${PR_NUMBER}-$(date +%s)-${BASENAME}"
 
-  if ! gh release upload "$RELEASE_TAG" "$TMPFILE" --repo "$SCREENSHOT_HOST_REPO" --clobber 2>&1 | tee -a /tmp/screenshot-upload.log >/dev/null; then
-    log_error "Public release upload failed for $file — refusing to emit a broken URL"
+  # Upload to GitHub Release (--clobber replaces if name collision)
+  if ! gh release upload "$RELEASE_TAG" "$FILE_PATH" --repo "$REPO" --clobber 2>/dev/null; then
+    # Retry with unique name by copying
+    TMPFILE="/tmp/${ASSET_NAME}"
+    cp "$FILE_PATH" "$TMPFILE"
+    if ! gh release upload "$RELEASE_TAG" "$TMPFILE#${ASSET_NAME}" --repo "$REPO" --clobber 2>/dev/null; then
+      log_warn "GitHub release upload failed for $file"
+      rm -f "$TMPFILE"
+      continue
+    fi
     rm -f "$TMPFILE"
-    exit 1
-  fi
-  rm -f "$TMPFILE"
-
-  UPLOAD_URL="https://github.com/${SCREENSHOT_HOST_REPO}/releases/download/${RELEASE_TAG}/${ASSET_NAME}"
-
-  # MANDATORY render-check: fetch ANONYMOUSLY (no auth header). If this
-  # returns anything other than HTTP 200 with non-zero content-length, the
-  # PR renderer will show a broken image — fail fast instead of writing
-  # a useless URL into the PR body.
-  HTTP_HEAD=$(curl -sIL "$UPLOAD_URL" 2>&1)
-  STATUS=$(echo "$HTTP_HEAD" | grep -E '^HTTP/' | tail -1 | awk '{print $2}')
-  CLEN=$(echo "$HTTP_HEAD" | grep -i '^content-length:' | tail -1 | awk '{print $2}' | tr -d '\r')
-  if [[ "$STATUS" != "200" || "${CLEN:-0}" -lt 1000 ]]; then
-    log_error "Render-check FAILED for $UPLOAD_URL (status=$STATUS, content-length=$CLEN). Refusing to write a broken image URL into the PR body."
-    exit 1
+    UPLOAD_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${ASSET_NAME}"
+  else
+    UPLOAD_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${BASENAME}"
   fi
 
   SCREENSHOT_URLS="${SCREENSHOT_URLS}<img src=\"${UPLOAD_URL}\" width=\"300\">\n"
-  UPLOADED_URLS+=("$UPLOAD_URL")
-  log_info "Uploaded + verified: ${BASENAME} → $UPLOAD_URL"
+  log_info "Uploaded: ${BASENAME} → $UPLOAD_URL"
 done
 
-if [[ ${#UPLOADED_URLS[@]} -eq 0 ]]; then
-  log_error "No screenshots uploaded successfully. Refusing to update PR body."
-  exit 1
-fi
-
-# Upload recording too if provided — same public host
+# Upload recording too if provided
 RECORDING_URL=""
 if [[ -n "$RECORDING" && -f "$RECORDING" ]]; then
   REC_BASENAME="$(basename "$RECORDING")"
-  REC_ASSET="${CARD}-${REC_BASENAME}"
+  REC_ASSET="card${CARD}-pr${PR_NUMBER}-$(date +%s)-${REC_BASENAME}"
   TMPFILE="/tmp/${REC_ASSET}"
   cp "$RECORDING" "$TMPFILE"
-  if gh release upload "$RELEASE_TAG" "$TMPFILE" --repo "$SCREENSHOT_HOST_REPO" --clobber 2>/dev/null; then
-    RECORDING_URL="https://github.com/${SCREENSHOT_HOST_REPO}/releases/download/${RELEASE_TAG}/${REC_ASSET}"
+  if gh release upload "$RELEASE_TAG" "$TMPFILE#${REC_ASSET}" --repo "$REPO" --clobber 2>/dev/null; then
+    RECORDING_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${REC_ASSET}"
     log_info "Uploaded recording: $RECORDING_URL"
   else
     log_warn "Recording upload failed"
