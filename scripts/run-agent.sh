@@ -441,6 +441,16 @@ ${recent_comments}
 - All builds and tests run on macOS destination unless explicitly told otherwise
 "
 
+  # Add Karpathy guidelines (applies to every agent)
+  prompt+="
+## Karpathy Guidelines
+
+1. **Think Before Coding** — State assumptions explicitly. If multiple interpretations exist, present them. Push back when a simpler approach exists.
+2. **Simplicity First** — Minimum code that solves the problem. No speculative features, abstractions for single-use code, or error handling for impossible scenarios.
+3. **Surgical Changes** — Touch only what you must. Don't improve adjacent code, comments, or formatting. Match existing style. Every changed line should trace to the task.
+4. **Goal-Driven Execution** — Define verifiable success criteria. Transform tasks into testable goals. State a brief plan with verification checks.
+"
+
   # Add agent reference / checklist
   if [[ -n "$agent_checklist" ]]; then
     prompt+="

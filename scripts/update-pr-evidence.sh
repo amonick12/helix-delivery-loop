@@ -58,14 +58,12 @@ done
 [[ -z "$RESULT" ]] && { log_error "--result PASS|FAIL required"; exit 1; }
 [[ -z "$SCREENSHOTS" ]] && { log_error "--screenshots required"; exit 1; }
 
-# ── Step 1: Upload screenshots to catbox.moe ─────────────
-# catbox.moe is an anonymous image host with no rate limits. The returned URLs
-# are public and render in private repo PR markdown without any auth dance.
-#
-# We accept both absolute paths (e.g. /tmp/helix-wt/feature/X/Packages/.../foo.png)
-# and repo-relative paths. The actual file content is uploaded — the path is
-# only used to find the file.
-log_info "Uploading screenshots to catbox.moe..."
+# ── Step 1: Upload screenshots to GitHub Release assets ───
+# GitHub Release assets are served authenticated for private repos, so they
+# render correctly in PR markdown for anyone with repo access. We upload to
+# the "screenshots" release tag with unique names to avoid collisions.
+RELEASE_TAG="screenshots"
+log_info "Uploading screenshots to GitHub Release '$RELEASE_TAG'..."
 
 SCREENSHOT_URLS=""
 for file in $SCREENSHOTS; do
@@ -80,35 +78,44 @@ for file in $SCREENSHOTS; do
     continue
   fi
 
-  # Upload to catbox.moe
-  UPLOAD_URL=$(curl -sF "reqtype=fileupload" -F "fileToUpload=@${FILE_PATH}" https://catbox.moe/user/api.php 2>/dev/null || echo "")
+  # Unique asset name: card-pr-timestamp-basename
+  BASENAME="$(basename "$FILE_PATH")"
+  ASSET_NAME="card${CARD}-pr${PR_NUMBER}-$(date +%s)-${BASENAME}"
 
-  if [[ -z "$UPLOAD_URL" || "$UPLOAD_URL" != https://* ]]; then
-    log_warn "catbox upload failed for $file (got: '$UPLOAD_URL')"
-    continue
-  fi
-
-  # Verify the URL resolves
-  HTTP_CODE=$(curl -sI "$UPLOAD_URL" 2>/dev/null | head -1 | awk '{print $2}')
-  if [[ "$HTTP_CODE" != "200" ]]; then
-    log_warn "catbox URL returned HTTP $HTTP_CODE for $file: $UPLOAD_URL"
-    continue
+  # Upload to GitHub Release (--clobber replaces if name collision)
+  if ! gh release upload "$RELEASE_TAG" "$FILE_PATH" --repo "$REPO" --clobber 2>/dev/null; then
+    # Retry with unique name by copying
+    TMPFILE="/tmp/${ASSET_NAME}"
+    cp "$FILE_PATH" "$TMPFILE"
+    if ! gh release upload "$RELEASE_TAG" "$TMPFILE#${ASSET_NAME}" --repo "$REPO" --clobber 2>/dev/null; then
+      log_warn "GitHub release upload failed for $file"
+      rm -f "$TMPFILE"
+      continue
+    fi
+    rm -f "$TMPFILE"
+    UPLOAD_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${ASSET_NAME}"
+  else
+    UPLOAD_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${BASENAME}"
   fi
 
   SCREENSHOT_URLS="${SCREENSHOT_URLS}<img src=\"${UPLOAD_URL}\" width=\"300\">\n"
-  log_info "Uploaded: $(basename "$FILE_PATH") → $UPLOAD_URL"
+  log_info "Uploaded: ${BASENAME} → $UPLOAD_URL"
 done
 
 # Upload recording too if provided
 RECORDING_URL=""
 if [[ -n "$RECORDING" && -f "$RECORDING" ]]; then
-  RECORDING_URL=$(curl -sF "reqtype=fileupload" -F "fileToUpload=@${RECORDING}" https://catbox.moe/user/api.php 2>/dev/null || echo "")
-  if [[ "$RECORDING_URL" == https://* ]]; then
+  REC_BASENAME="$(basename "$RECORDING")"
+  REC_ASSET="card${CARD}-pr${PR_NUMBER}-$(date +%s)-${REC_BASENAME}"
+  TMPFILE="/tmp/${REC_ASSET}"
+  cp "$RECORDING" "$TMPFILE"
+  if gh release upload "$RELEASE_TAG" "$TMPFILE#${REC_ASSET}" --repo "$REPO" --clobber 2>/dev/null; then
+    RECORDING_URL="https://github.com/${REPO}/releases/download/${RELEASE_TAG}/${REC_ASSET}"
     log_info "Uploaded recording: $RECORDING_URL"
   else
     log_warn "Recording upload failed"
-    RECORDING_URL=""
   fi
+  rm -f "$TMPFILE"
 fi
 
 # ── Step 2: Get current PR body (everything above evidence section) ──
