@@ -75,6 +75,14 @@ Planner picks up from here.
 
 **Do NOT use MCP tools for Stitch.** Use the REST API via curl. The Bash timeout MUST be at least 120000ms since generation takes 30-60 seconds.
 
+### NON-NEGOTIABLE rules (failure modes from prior sessions)
+
+Before you post any mockup to GitHub, enforce all three:
+
+1. **Every UI card MUST have a posted mockup.** If `HasUIChanges=Yes`, the Designer cannot move the card to Ready without at least one `<img src=...>` comment on the issue. Text-only criteria is not a substitute.
+2. **Use the inline `lh3.googleusercontent.com/aida/...` URL directly — NEVER download the screenshot and re-upload it to a release asset.** Downloading it serves the default ~45KB thumbnail, which is blurry. The inline URL is public, served by Google's CDN, and renders fine in GitHub markdown for any repo (private or public).
+3. **Always append `=w800` to the Stitch screenshot URL.** Without the suffix Google serves a ~75KB low-res thumbnail. With `=w800` you get a ~528KB full-res image. If the URL already has a query string, append `=w800` after the path (it's a Google path suffix, not a query parameter).
+
 ### Helix Design System
 
 All mockups go in ONE Stitch project. Never create new projects.
@@ -176,13 +184,32 @@ print(screens[0]['screenshot']['downloadUrl'])
 
 **4. Post to GitHub issue as a comment:**
 
-```bash
-gh issue comment <CARD_NUMBER> --body "## Design Mockup (Helix Dark)
+**CRITICAL — two gotchas that repeatedly break mockup quality:**
 
-<img src=\"$SCREENSHOT_URL\" width=\"400\">
+a) **Append `=w800` to the screenshot URL** to get the full-res 528KB image. Without it, Stitch serves a ~45–75KB thumbnail that renders blurry and washed out.
+
+b) **Never put `<img src="..."` inside a double-quoted shell string with escaped quotes.** The backslashes get preserved literally and the rendered markdown shows `<img src=\"...\"` which GitHub cannot parse. Always write the body to a file and use `--body-file`.
+
+```bash
+HIGHRES_URL="${SCREENSHOT_URL}=w800"
+
+cat > /tmp/design-comment-${CARD_NUMBER}.md <<EOF
+## Design Mockup (Helix Dark)
+
+<img src="${HIGHRES_URL}" width="400">
 
 ### Design Notes
-<your notes here>"
+<your notes here>
+EOF
+
+gh issue comment <CARD_NUMBER> --body-file /tmp/design-comment-${CARD_NUMBER}.md
+rm -f /tmp/design-comment-${CARD_NUMBER}.md
+```
+
+After posting, **verify the rendered comment has unescaped quotes**:
+
+```bash
+gh issue view <CARD_NUMBER> --repo amonick12/helix --json comments --jq '.comments[-1].body' | grep -q '<img src="' || { echo "BROKEN: img tag has escaped quotes"; exit 1; }
 ```
 
 **5. Set DesignURL field:**
