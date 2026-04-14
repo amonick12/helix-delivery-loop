@@ -2,7 +2,7 @@
 
 ## When it runs
 
-Dispatcher rule #4a: card In Progress with a **ready PR** (not draft), no `ai-approved` label, and no `code-review-approved` label.
+Dispatcher rule #4a: card In Progress with a **ready PR** (not draft) and no `code-review-approved` label.
 
 ## What it does
 
@@ -18,7 +18,7 @@ The Reviewer uses **OpenAI Codex** (not Claude) for code review — this ensures
    ```
 3. **Parse Codex output** and post findings as a PR comment.
 4. **Decision:**
-   - **PASS** (no P0/P1 issues): Add `code-review-approved` label. If non-UI card, also apply `ai-approved` via `apply-ai-approved.sh --pr N --card N`.
+   - **PASS** (no P0/P1 issues): Add `code-review-approved` label. If non-UI card, the card moves to In Review (no Tester needed).
    - **FAIL** (P0/P1 issues): Route back to Builder (draft PR + `rework` label).
 
 ## CRITICAL: No Code Changes
@@ -36,7 +36,6 @@ If something needs fixing, the Reviewer documents it precisely and routes to Bui
 
 - `update-pr-checklist.sh` — check off criteria
 - `update-pr-evidence.sh --pr N --section code-review --content "..."` — post review findings to PR description
-- `apply-ai-approved.sh --pr N --card N` — apply label (non-UI cards only)
 - `security-scan.sh --worktree <path>` — deterministic security scan (run before Codex review)
 
 ## Security Scan (Deterministic — runs before Codex)

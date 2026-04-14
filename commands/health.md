@@ -33,7 +33,7 @@ Comprehensive check for all common pipeline issues. Run this before dispatching 
    # ── Label Mismatches ──────────────────────────────
    echo ""
    echo "## Label Sync"
-   SYNC_LABELS=("user-approved" "ai-approved")
+   SYNC_LABELS=("user-approved")
    echo "$PRS" | python3 -c "
    import sys, json, subprocess
    prs = json.load(sys.stdin)
@@ -46,7 +46,7 @@ Comprehensive check for all common pipeline issues. Run this before dispatching 
        result = subprocess.run(['gh','issue','view',card,'--repo','amonick12/helix','--json','labels','--jq','[.labels[].name]'], capture_output=True, text=True)
        issue_labels = set(json.loads(result.stdout))
      except: continue
-     for label in ['user-approved','ai-approved','visual-qa-approved','code-review-approved']:
+     for label in ['user-approved','visual-qa-approved','code-review-approved']:
        if label in pr_labels and label not in issue_labels:
          print(f'  ❌ PR #{pr[\"number\"]} has \"{label}\" but issue #{card} does not')
        elif label in issue_labels and label not in pr_labels:

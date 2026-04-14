@@ -1,7 +1,7 @@
 ---
 name: sync-labels
 description: >
-  Sync approval labels (user-approved, ai-approved, code-review-approved,
+  Sync approval labels (user-approved, code-review-approved,
   visual-qa-approved) between PRs and their linked issues. Cleans up
   contradictory label pairs (awaiting + approved).
 ---

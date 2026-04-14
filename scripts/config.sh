@@ -118,7 +118,7 @@ STITCH_MCP_URL="https://stitch.googleapis.com/mcp"
 # ── Agent Comment Filter ─────────────────────────────────
 # Regex pattern to identify agent-posted PR comments (not user comments)
 # Used by dispatcher.sh and check-pr-comments.sh to avoid re-triggering on our own comments
-AGENT_COMMENT_FILTER="Verification Report|Validation Report|Gate Results|ai-approved|TestFlight Build|Visual QA|Simulator Visual Evidence|Simulator UI Gates|Quality Gates|Cost Breakdown|Agent Cost|Screen Recording|Code [Rr]eview|Design [Ff]idelity|Visual Evidence|Acceptance Criteria"
+AGENT_COMMENT_FILTER="Verification Report|Validation Report|Gate Results|TestFlight Build|Visual QA|Simulator Visual Evidence|Simulator UI Gates|Quality Gates|Cost Breakdown|Agent Cost|Screen Recording|Code [Rr]eview|Design [Ff]idelity|Visual Evidence|Acceptance Criteria"
 
 # ── PR Comment Upsert ────────────────────────────────────
 # Post or update a PR comment. Finds existing by heading prefix, patches it, or creates new.

@@ -60,10 +60,10 @@ Continuous feature delivery driven by the GitHub Project board. Eight phase-base
    | Agent Finished | Card HasUIChanges | Labels Applied | Move card to |
    |---|---|---|---|
    | Builder | any | (none yet) | **Keep In Progress** — Reviewer next |
-   | Reviewer (PASS) | **No** (non-UI) | `code-review-approved` + `ai-approved` | **In Review** — ready for user approval |
+   | Reviewer (PASS) | **No** (non-UI) | `code-review-approved` | **In Review** — ready for user approval |
    | Reviewer (PASS) | **Yes** (UI) | `code-review-approved` only | **Keep In Progress** — Tester must run next for visual QA |
    | Reviewer (FAIL) | any | `rework` | **Keep In Progress** — Builder rework |
-   | Tester (PASS) | Yes | `visual-qa-approved` + `ai-approved` | **In Review** — ready for user approval |
+   | Tester (PASS) | Yes | `visual-qa-approved` | **In Review** — ready for user approval |
    | Tester (FAIL) | Yes | `rework` | **Keep In Progress** — Builder rework |
    | Releaser | any | merged | **Done** |
 

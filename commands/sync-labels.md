@@ -9,7 +9,7 @@ arguments:
 
 # Sync Labels
 
-Sync approval labels (`user-approved`, `ai-approved`, `code-review-approved`, `visual-qa-approved`) between PRs and their linked issues. The dispatcher checks issue labels, but users often add labels to PRs — this command ensures they match.
+Sync approval labels (`user-approved`, `code-review-approved`, `visual-qa-approved`) between PRs and their linked issues. The dispatcher checks issue labels, but users often add labels to PRs — this command ensures they match.
 
 ## Steps
 
@@ -25,7 +25,7 @@ Sync approval labels (`user-approved`, `ai-approved`, `code-review-approved`, `v
 
 2. **For each PR, sync labels to the linked issue:**
    ```bash
-   SYNC_LABELS=("user-approved" "ai-approved" "code-review-approved" "visual-qa-approved" "awaiting-visual-qa" "awaiting-code-review")
+   SYNC_LABELS=("user-approved" "code-review-approved" "visual-qa-approved" "awaiting-visual-qa" "awaiting-code-review")
    
    for PR in $PRS; do
      # Get PR labels

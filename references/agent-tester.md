@@ -4,7 +4,7 @@
 
 Dispatcher rule #4b: card In Progress with a **ready PR** (not draft), has `code-review-approved` label, no `visual-qa-approved` label, and card has UI changes.
 
-**Only runs for UI cards.** Non-UI cards skip directly from Reviewer to `ai-approved`.
+**Only runs for UI cards.** Non-UI cards skip the Tester entirely — Reviewer's `code-review-approved` is sufficient.
 
 ## What it does
 
@@ -47,7 +47,7 @@ After run-tester.sh succeeds, review the screenshots it posted:
    Only check criteria you can confirm from the screenshots. Leave unchecked anything that requires code inspection (that's Reviewer's job).
 6. If issues found:
    - Post text-only comment (bot: prefix) describing the issues
-   - Convert PR to draft + add rework label: `gh pr ready --undo $PR && gh pr edit $PR --add-label rework --remove-label code-review-approved --remove-label visual-qa-approved --remove-label ai-approved`
+   - Convert PR to draft + add rework label: `gh pr ready --undo $PR && gh pr edit $PR --add-label rework --remove-label code-review-approved --remove-label visual-qa-approved`
 7. If all good:
    - Post text-only comment: `bot: ## Visual QA — PASS (verified)`
    - Apply label: `gh pr edit $PR --repo amonick12/helix --add-label visual-qa-approved`

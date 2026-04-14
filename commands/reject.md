@@ -31,7 +31,7 @@ Post a rejection comment on a PR, remove approval labels, and route the card bac
 
 3. **Remove approval labels from PR:**
    ```bash
-   for label in "user-approved" "ai-approved" "visual-qa-approved" "code-review-approved" "tests-passed"; do
+   for label in "user-approved" "visual-qa-approved" "code-review-approved" "tests-passed"; do
      gh pr edit "$PR_NUMBER" --repo amonick12/helix --remove-label "$label" 2>/dev/null
    done
    ```
@@ -49,9 +49,7 @@ Post a rejection comment on a PR, remove approval labels, and route the card bac
 5. **Remove approval labels from issue and set rework:**
    ```bash
    if [[ -n "$CARD" ]]; then
-     for label in "user-approved" "ai-approved"; do
-       gh issue edit "$CARD" --repo amonick12/helix --remove-label "$label" 2>/dev/null
-     done
+     gh issue edit "$CARD" --repo amonick12/helix --remove-label "user-approved" 2>/dev/null
      SCRIPTS="/Users/aaronmonick/.claude/plugins/cache/local/helix-delivery-loop/3.0.0/scripts"
      bash "$SCRIPTS/move-card.sh" --issue "$CARD" --to "In progress" 2>/dev/null
      bash "$SCRIPTS/state.sh" set "$CARD" rework_target builder 2>/dev/null

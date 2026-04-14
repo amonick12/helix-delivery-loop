@@ -3,7 +3,7 @@ name: deploy
 description: "Upload a PR branch to TestFlight for testing"
 arguments:
   - name: pr
-    description: "PR number to deploy (defaults to latest ai-approved PR with UI changes)"
+    description: "PR number to deploy (defaults to latest visual-qa-approved PR with UI changes)"
     required: false
 ---
 
@@ -17,11 +17,11 @@ Upload a feature branch to TestFlight for user testing.
    ```bash
    PR_NUMBER="$ARGUMENTS"
    if [[ -z "$PR_NUMBER" ]]; then
-     # Find latest ai-approved PR with UI changes
-     PR_NUMBER=$(gh pr list --repo amonick12/helix --state open --label "ai-approved" --json number,title --jq '.[0].number' 2>/dev/null)
+     # Find latest visual-qa-approved PR with UI changes
+     PR_NUMBER=$(gh pr list --repo amonick12/helix --state open --label "visual-qa-approved" --json number,title --jq '.[0].number' 2>/dev/null)
    fi
    ```
-   If no PR found, report "No ai-approved PRs to deploy" and stop.
+   If no PR found, report "No visual-qa-approved PRs to deploy" and stop.
 
 2. **Get PR details:**
    ```bash
