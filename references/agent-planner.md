@@ -10,13 +10,15 @@ If the card has the `epic` label, the Planner MUST NOT write tests or a spec for
 
 1. Read the PRD and acceptance criteria
 2. Break the epic into **sub-cards** — each sub-card is one PR-sized unit of work
-3. Create sub-cards via `scripts/create-card.sh` with:
-   - Clear title referencing the epic (e.g., "Insights v2: Weekly summary hero card")
+3. **Order the sub-cards by build sequence** — earliest dependency first, dependents after. The order is part of the breakdown, not optional. Number them `1/N`, `2/N`, … `N/N` where N is the total sub-card count.
+4. Create sub-cards via `scripts/create-card.sh` with:
+   - Title format: `[Epic #<epic-id>] <i>/<N> — <slug>` (e.g., `[Epic #182] 2/5 — Insights v2: Weekly summary hero card`). The `<i>/<N>` prefix MUST appear in the title so the order is visible everywhere the card surfaces (board, PR list, notifications).
    - Acceptance criteria scoped to that sub-card only
    - Link to parent epic in the body (`Part of #<epic-id>`)
-4. Post the breakdown as an epic comment listing all sub-cards
-5. Move the epic card to Done (it's now a tracking issue, not a buildable card)
-6. The sub-cards enter Backlog → Designer evaluates each one individually
+   - If the card depends on a sibling sub-card, add a `Depends on #<sibling-id>` line — Builder for a dependent card branches from its prerequisite's feature branch, not from autodev
+5. Post the breakdown as an epic comment listing all sub-cards in order with their `<i>/<N>` prefix and dependency links
+6. Move the epic card to Done (it's now a tracking issue, not a buildable card)
+7. The sub-cards enter Backlog → Designer evaluates each one individually, but the dispatcher honors the order: a later card cannot enter Builder until its declared prerequisite is at least In Progress with a feature branch pushed
 
 **Never plan, spec, or build an epic as a single PR.** Epics are collections of cards, not cards themselves.
 
@@ -52,12 +54,12 @@ When in doubt, make cards larger rather than smaller. A single shippable feature
    - Tests must be specific to acceptance criteria, not generic coverage
 7. Run tests to confirm they FAIL (red phase):
    - `cd /tmp/helix-wt/feature/<card-id>-<slug> && ./devtools/ios-agent/run-unit-tests.sh`
-8. Write technical spec and implementation plan to the card's docs directory:
-   - Epic cards: `docs/epics/<epic-id>-<slug>/cards/<card-id>-<slug>/spec.md`
-   - Standalone cards: `docs/cards/<card-id>-<slug>/spec.md`
+8. Write technical spec and implementation plan to the build artifact directory (NEVER commit to repo):
+   - Path: `/tmp/helix-artifacts/<card-id>/spec.md`
+   - `mkdir -p /tmp/helix-artifacts/<card-id>` first
    - `spec.md` includes: technical spec (data model, API changes, component design) AND implementation plan (files to create/modify, order, key patterns, what each test expects)
-   - Create the directory if it doesn't exist: `mkdir -p docs/epics/.../cards/<card-id>-<slug>` or `mkdir -p docs/cards/<card-id>-<slug>`
-   - Also post spec as card comment for visibility (the repo file is authoritative)
+   - This file is consumed by the Builder and embedded into the PR description by `create-pr.sh`. It is a build artifact, not source — do NOT add it to git, do NOT write it under `docs/`.
+   - Also post spec as a card comment for visibility (the artifact file is authoritative for the Builder)
 9. Create `criteria-tests.json` in the artifact directory (NOT the worktree) mapping each acceptance criterion to its test:
    ```bash
    mkdir -p /tmp/helix-artifacts/<card-id>
@@ -86,7 +88,7 @@ When in doubt, make cards larger rather than smaller. A single shippable feature
 
 ## What it hands off
 
-Worktree at `/tmp/helix-wt/feature/<card-id>-<slug>` with failing tests committed and pushed. Spec committed to `docs/epics/.../cards/<id>-<slug>/spec.md` or `docs/cards/<id>-<slug>/spec.md`. Builder picks up from here.
+Worktree at `/tmp/helix-wt/feature/<card-id>-<slug>` with failing tests committed and pushed. Spec written to `/tmp/helix-artifacts/<card-id>/spec.md` (NOT committed). Builder picks up from here and `create-pr.sh` embeds the spec into the PR description.
 
 ## Size Estimate Format
 

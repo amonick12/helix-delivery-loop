@@ -99,6 +99,13 @@ if [[ -d "$WORKTREE" ]]; then
   TEST_COUNT=$(git -C "$WORKTREE" diff --name-only "origin/$BASE_BRANCH..HEAD" 2>/dev/null | grep -c 'Tests/' || echo "0")
 fi
 
+# ── Read spec artifact (Planner output, not committed) ─
+SPEC_BODY=""
+SPEC_ARTIFACT="/tmp/helix-artifacts/$CARD/spec.md"
+if [[ -f "$SPEC_ARTIFACT" ]]; then
+  SPEC_BODY=$(cat "$SPEC_ARTIFACT")
+fi
+
 # ── Check for design URL ─────────────────────────────
 DESIGN_URL=""
 if [[ "$DRY_RUN" != "1" ]]; then
@@ -243,6 +250,15 @@ $COMMIT_LOG
 ## Acceptance Criteria
 
 $CRITERIA
+
+$(if [[ -n "$SPEC_BODY" ]]; then echo "## Technical Spec
+
+<details>
+<summary>Spec & implementation plan (from Planner)</summary>
+
+$SPEC_BODY
+
+</details>"; fi)
 
 $DESIGN_SECTION
 

@@ -33,20 +33,27 @@ cd "$WORKTREE"
 CHANGED=$(git diff --name-only "origin/${BASE_BRANCH}...HEAD" 2>/dev/null || true)
 [[ -z "$CHANGED" ]] && echo "OK: no changes" && exit 0
 
-# Allowed patterns: Tests/, docs/, spec files, criteria files
+# Allowed patterns: Tests/ only. Specs are written to /tmp/helix-artifacts/, never committed.
 VIOLATIONS=""
+SPEC_VIOLATIONS=""
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
   case "$file" in
     */Tests/*) ;; # tests are allowed
-    docs/*) ;; # docs/specs are allowed
-    *.md) ;; # markdown files are allowed
-    *.json) ;; # criteria-tests.json etc are allowed
+    docs/cards/*/spec.md|docs/epics/*/cards/*/spec.md|docs/specs/*)
+      SPEC_VIOLATIONS="${SPEC_VIOLATIONS}${file}\n"
+      ;;
     *)
       VIOLATIONS="${VIOLATIONS}${file}\n"
       ;;
   esac
 done <<< "$CHANGED"
+
+if [[ -n "$SPEC_VIOLATIONS" ]]; then
+  echo "VIOLATION: Planner committed spec files to the repo. Specs must live at /tmp/helix-artifacts/<card>/spec.md and be embedded in the PR description by create-pr.sh." >&2
+  echo -e "$SPEC_VIOLATIONS" | sed 's/^/  /' >&2
+  exit 1
+fi
 
 if [[ -n "$VIOLATIONS" ]]; then
   echo "VIOLATION: Planner modified source files (Builder's job):" >&2

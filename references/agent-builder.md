@@ -16,11 +16,10 @@ If the card has the `epic` label, STOP immediately. Epics must be broken into su
 3. Check for conflicts with other open PRs via `check-conflicts.sh`
 4. Read Planner's test suite (`Packages/*/Tests/*`)
 5. Read the spec and design docs:
-   - Check `docs/epics/*/cards/<card-id>-*/spec.md` first (epic card)
-   - Fall back to `docs/cards/<card-id>-*/spec.md` (standalone card)
+   - Spec lives at `/tmp/helix-artifacts/<card-id>/spec.md` (build artifact written by Planner — never committed)
    - If epic card, also read the parent `docs/epics/*/prd.md` for context
-   - If UI card, read `design.md` from the same directory for mockup references
-   - If no spec.md found, fall back to card comments from Planner
+   - If UI card, read `docs/epics/*/cards/<card-id>-*/design.md` for mockup references (design.md IS committed; spec.md is not)
+   - If no artifact spec.md found, fall back to card comments from Planner
 6. Implement code to make ALL failing tests pass, following CLAUDE.md patterns strictly
 7. Run unit tests frequently during implementation
 8. When all tests pass, run automated self-review:
