@@ -178,6 +178,17 @@ if [[ -d "$WORKTREE" ]]; then
 
   TODOS=$(cd "$WORKTREE" && git diff "origin/$BASE_BRANCH"...HEAD -- '*.swift' 2>/dev/null | grep -E '^\+.*(TODO|FIXME)' || true)
   [[ -n "$TODOS" ]] && log_warn "Advisory: TODO/FIXME found in diff"
+
+  # Snapshot staleness check: if Views/*.swift changed, verify __Snapshots__/*.png also changed
+  VIEW_CHANGES=$(cd "$WORKTREE" && git diff --name-only "origin/$BASE_BRANCH"...HEAD -- 'Packages/Feature*/Sources/*/Views/**/*.swift' 2>/dev/null || true)
+  if [[ -n "$VIEW_CHANGES" ]]; then
+    SNAPSHOT_UPDATES=$(cd "$WORKTREE" && git diff --name-only "origin/$BASE_BRANCH"...HEAD -- 'Packages/Feature*/Tests/**/__Snapshots__/**/*.png' 2>/dev/null || true)
+    if [[ -z "$SNAPSHOT_UPDATES" ]]; then
+      log_warn "STALE SNAPSHOTS: Views changed but no __Snapshots__/*.png updated. Regenerate snapshot references before merge."
+    else
+      log_info "Snapshot references updated alongside view changes"
+    fi
+  fi
 fi
 log_info "PASS: Static Checks (advisory)"
 

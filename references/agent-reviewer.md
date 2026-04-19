@@ -59,6 +59,7 @@ Review the PR diff for:
 - Scope creep (changes beyond what the card requires)
 - Stale comments — any inline comments, docstrings, or file headers in the diff that no longer match the code they describe
 - **Missing doc updates (P1)** — if the PR adds a user-visible feature, changes a public API, or introduces a new architectural pattern, check that README.md / relevant docs were updated in the same commit. Flag as P1 if missing.
+- **Stale snapshot references (P1)** — if the diff touches `Views/**/*.swift` under any Feature package but no `__Snapshots__/*.png` files are updated in the same diff, flag as P1. View changes that alter rendered output require regenerated snapshot PNGs.
 
 Severity levels:
 - **P0**: Critical bug, crash, data loss, security vulnerability

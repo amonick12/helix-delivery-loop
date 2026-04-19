@@ -1,0 +1,141 @@
+{
+  "card": 248,
+  "runs": [
+    {
+      "agent": "designer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-14T05:07:38Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "designer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-14T16:06:57Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "planner",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T01:55:54Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T02:08:25Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T02:29:11Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "tester",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T04:02:42Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-16T01:04:45Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-16T02:13:22Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-16T02:22:35Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-16T02:44:24Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "tester",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-17T00:59:48Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-17T01:59:20Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-17T02:52:40Z",
+      "ended": null,
+      "duration_sec": 0
+    }
+  ],
+  "totals": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0,
+    "duration_sec": 0
+  }
+}

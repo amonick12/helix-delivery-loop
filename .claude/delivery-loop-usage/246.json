@@ -1,0 +1,111 @@
+{
+  "card": 246,
+  "runs": [
+    {
+      "agent": "designer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-14T05:07:34Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "designer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-14T16:06:53Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "planner",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T01:55:27Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T02:08:21Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T02:29:04Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "tester",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T03:49:26Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-16T01:06:38Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "tester",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-16T03:50:11Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "builder",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-17T01:59:19Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-17T02:52:39Z",
+      "ended": null,
+      "duration_sec": 0
+    }
+  ],
+  "totals": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cost_usd": 0,
+    "duration_sec": 0
+  }
+}

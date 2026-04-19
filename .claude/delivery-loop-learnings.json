@@ -32,18 +32,38 @@
       "resolution": null,
       "tags": [],
       "created": "2026-04-09T20:36:25Z"
+    },
+    {
+      "id": 4,
+      "card": 259,
+      "agent": "scout",
+      "type": "pitfall",
+      "lesson": "create-card.sh sends --repo $OWNER/$REPO which expands to amonick12/amonick12/helix because config.sh sets REPO='amonick12/helix' (already fully qualified). gh issue create fails silently through set -e and leaves ISSUE_URL empty. Workaround: call gh issue create --repo amonick12/helix directly, then manually item-add + move-card.sh.",
+      "context": null,
+      "resolution": null,
+      "tags": [
+        "create-card",
+        "config",
+        "tooling"
+      ],
+      "created": "2026-04-15T21:12:03Z"
     }
   ],
   "stats": {
-    "total": 3,
+    "total": 4,
     "by_type": {
       "pattern": 1,
       "performance": 1,
-      "pitfall": 1
+      "pitfall": 2
     },
     "by_agent": {
-      "builder": 3
+      "builder": 3,
+      "scout": 1
     },
-    "most_common_tags": []
+    "most_common_tags": [
+      "config",
+      "create-card",
+      "tooling"
+    ]
   }
 }

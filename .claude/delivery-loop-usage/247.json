@@ -1,5 +1,5 @@
 {
-  "card": 215,
+  "card": 247,
   "runs": [
     {
       "agent": "designer",
@@ -7,7 +7,17 @@
       "input_tokens": 0,
       "output_tokens": 0,
       "cost_usd": 0,
-      "started": "2026-04-10T03:32:17Z",
+      "started": "2026-04-14T05:07:36Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "designer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-14T16:06:55Z",
       "ended": null,
       "duration_sec": 0
     },
@@ -17,7 +27,7 @@
       "input_tokens": 0,
       "output_tokens": 0,
       "cost_usd": 0,
-      "started": "2026-04-10T04:42:23Z",
+      "started": "2026-04-15T01:55:41Z",
       "ended": null,
       "duration_sec": 0
     },
@@ -27,7 +37,27 @@
       "input_tokens": 0,
       "output_tokens": 0,
       "cost_usd": 0,
-      "started": "2026-04-14T01:51:19Z",
+      "started": "2026-04-15T02:08:23Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "reviewer",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T02:29:07Z",
+      "ended": null,
+      "duration_sec": 0
+    },
+    {
+      "agent": "tester",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-15T03:22:47Z",
       "ended": null,
       "duration_sec": 0
     },
@@ -37,17 +67,17 @@
       "input_tokens": 0,
       "output_tokens": 0,
       "cost_usd": 0,
-      "started": "2026-04-14T01:51:31Z",
+      "started": "2026-04-16T01:04:44Z",
       "ended": null,
       "duration_sec": 0
     },
     {
-      "agent": "builder",
+      "agent": "tester",
       "model": null,
       "input_tokens": 0,
       "output_tokens": 0,
       "cost_usd": 0,
-      "started": "2026-04-14T02:55:32Z",
+      "started": "2026-04-16T04:00:49Z",
       "ended": null,
       "duration_sec": 0
     }
