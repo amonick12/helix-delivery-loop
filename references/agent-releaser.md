@@ -25,6 +25,35 @@ The Releaser runs in two modes depending on what triggered it:
 3. Done — do NOT merge. User tests on device first.
 
 ### Mode B: Merge (user added `user-approved` label)
+
+### Staleness guard (must run first — no exceptions)
+
+Before any rebase attempt, run `check-staleness.sh`:
+
+```bash
+SCRIPTS="${CLAUDE_PLUGIN_ROOT:-$(dirname $0)/..}/scripts"
+if ! bash "$SCRIPTS/check-staleness.sh" --pr "$PR"; then
+  # exit code 2 = stale. Abort per the steps below.
+  gh pr close "$PR" --repo amonick12/helix --comment "bot: Closing — feature branch is too far ahead of autodev to rebase safely. Cherry-picking card commits onto a fresh autodev branch has conflicted on past attempts. Card returned to Ready so a fresh Planner run can rebuild cleanly on current autodev."
+  bash "$SCRIPTS/move-card.sh" --issue "$CARD" --to Ready
+  bash "$SCRIPTS/state.sh" clear "$CARD"
+  echo "ABORTED: stale branch (>30 commits ahead of autodev)"
+  exit 0
+fi
+```
+
+**If `STALE_COUNT > 30`**: ABORT the merge. A branch this far ahead of autodev almost always means the PR was branched from an ancient base and has been passed over by later merges. Rebasing pulls in hundreds of files from already-merged work and produces an unreviewable diff (see the PR #257 / card #246 incident for precedent).
+
+Required action on abort:
+1. Close the PR with a bot comment explaining the staleness and naming `STALE_COUNT`.
+2. Move the card back to **Ready** and clear `state.sh` for it.
+3. Do NOT attempt cherry-picks — prior attempts have conflicted on the first commit.
+4. Never force-rebase a branch more than 30 commits ahead. Never delete or rewrite history to make the diff smaller.
+
+The Releaser must not close a PR for any other reason (e.g. "looks like a duplicate of PR #N"). Duplicate-detection is Scout's job, not the Releaser's.
+
+### Normal merge path (only when `STALE_COUNT <= 30`)
+
 1. Check mergeability, rebase if needed
 2. Squash merge: `gh pr merge <N> --squash --delete-branch`
 3. Rebase all other open PRs via `rebase-open-prs.sh`
