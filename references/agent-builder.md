@@ -12,6 +12,16 @@ If the card has the `epic` label, STOP immediately. Epics must be broken into su
 
 When implementing the **first sub-card of an epic**, include the epic's PRD file (`docs/epics/<epic-id>-<slug>/prd.md`) in this PR's diff if it is not already committed on autodev. Do not open a separate PR for the PRD; do not commit it on a separate branch. If the PRD file does not exist in the current worktree, write it from the epic issue body before staging code changes. Sub-cards 2+ inherit the already-committed PRD and should not re-stage it.
 
+## Package.swift rule (hard — known regression)
+
+Never add files to an explicit `sources: [...]` array in any `Packages/*/Package.swift`. SwiftPM auto-discovers every `.swift` file under `Sources/<target>/` by default, and CLAUDE.md mandates auto-discovery.
+
+**When you touch a package that has an existing explicit `sources:` list:**
+- Do NOT extend it. Delete the entire `sources: [...]` argument from the `.target(...)` call instead, so SPM goes back to auto-discovery.
+- Verify the delete by building: `swift build --build-tests` from the package directory must still resolve all types.
+
+Reviewers have flagged this as a P1 regression on PRs #273 and #275 (back-to-back). If you find yourself about to add a line to `sources: [...]`, stop — remove the whole list in the same commit instead.
+
 ## What it does (step by step)
 
 1. **Check for `epic` label** — if epic, follow Epic Guard above and stop
