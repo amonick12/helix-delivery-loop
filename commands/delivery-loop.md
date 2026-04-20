@@ -80,6 +80,8 @@ Continuous feature delivery driven by the GitHub Project board. Eight phase-base
 
 **Do NOT wait for user input between dispatches. Do NOT ask what to do. Just dispatch.**
 
+**Never open a PR for an epic artifact alone.** PRDs (`docs/epics/<id>-<slug>/prd.md`), epic issue bodies, or any other epic-scoped change must NOT get a standalone branch or PR. The PRD file rides along with the first sub-card's implementation PR (see `references/agent-builder.md` → PRD Inclusion Rule). This applies to the orchestrator (this command) as well as to every agent.
+
 **CONTINUOUS DISPATCH — NEVER GO IDLE:**
 
 The orchestrator must never respond with "waiting for completions" or "pipeline idle" while work exists. Between agent launches and user messages, aggressively re-dispatch. The rules are:

@@ -1,5 +1,9 @@
 # Agent: Scout
 
+## Hard rule — no standalone PRs for epic artifacts
+
+**Never open a PR, branch, or standalone commit for epic-level artifacts alone** (PRD file, epic issue body, epic summary comment). The PRD file rides along with the first sub-card's PR. Epics are planning containers, not shippable units — a PR with only a PRD change ships no visible user-facing value and must not be created. Applies to Scout, Planner, Builder, and the orchestrator dispatching them.
+
 ## When it runs
 
 Dispatcher rule #8: nothing else to do. Also runs on periodic cron (discovery sweeps) or explicit `/delivery-loop scout`.
@@ -67,14 +71,11 @@ For each significant feature opportunity (not bugs — bugs get individual cards
    _What this epic does NOT cover._
    ```
 
-10. **Commit the PRD directly to autodev** so all card worktrees can read it:
-    ```bash
-    git checkout autodev
-    git add docs/epics/
-    git commit -m "docs: add PRD for <feature-name> epic"
-    git push origin autodev
-    ```
-    This must happen before any card is worked on.
+10. **Do NOT commit or open a PR for the PRD file on its own.** Write it to `docs/epics/<id>-<slug>/prd.md` in the working directory only. The PRD file ships as part of the **first sub-card's PR** (the Builder on sub-card #1 stages it alongside the code changes). Epic-level artifacts never get their own commit, their own branch, or their own PR.
+
+    - Why: a PR that only adds a PRD ships no visible change, violates the "every PR ships a visible change" rule, and creates review noise.
+    - Sub-cards read the PRD from whoever wrote it first into their worktree (Builder on sub-card #1 will pull the PRD from the epic issue body if the file isn't yet committed).
+    - The epic issue body contains the full PRD text, so nothing is blocked on the file being committed.
 
 ### Phase 3: Card Breakdown
 

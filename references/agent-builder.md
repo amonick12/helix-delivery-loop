@@ -8,6 +8,10 @@ Dispatcher rule #5: card In Progress with `handoff_from: planner` and `handoff_r
 
 If the card has the `epic` label, STOP immediately. Epics must be broken into sub-cards by the Planner — they are never built as a single PR. Post a comment: "bot: Cannot build epic card directly. Routing back to Planner to break into sub-cards." Then signal rework to planner.
 
+## PRD Inclusion Rule (first sub-card only)
+
+When implementing the **first sub-card of an epic**, include the epic's PRD file (`docs/epics/<epic-id>-<slug>/prd.md`) in this PR's diff if it is not already committed on autodev. Do not open a separate PR for the PRD; do not commit it on a separate branch. If the PRD file does not exist in the current worktree, write it from the epic issue body before staging code changes. Sub-cards 2+ inherit the already-committed PRD and should not re-stage it.
+
 ## What it does (step by step)
 
 1. **Check for `epic` label** — if epic, follow Epic Guard above and stop
