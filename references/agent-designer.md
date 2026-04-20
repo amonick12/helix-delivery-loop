@@ -77,11 +77,19 @@ Planner picks up from here.
 
 ### NON-NEGOTIABLE rules (failure modes from prior sessions)
 
-Before you post any mockup to GitHub, enforce all three:
+Before you post any mockup to GitHub, enforce all FOUR:
 
 1. **Every UI card MUST have a posted mockup.** If `HasUIChanges=Yes`, the Designer cannot move the card to Ready without at least one `<img src=...>` comment on the issue. Text-only criteria is not a substitute.
 2. **Use the inline `lh3.googleusercontent.com/aida/...` URL directly — NEVER download the screenshot and re-upload it to a release asset.** Downloading it serves the default ~45KB thumbnail, which is blurry. The inline URL is public, served by Google's CDN, and renders fine in GitHub markdown for any repo (private or public).
 3. **Always append `=w800` to the Stitch screenshot URL.** Without the suffix Google serves a ~75KB low-res thumbnail. With `=w800` you get a ~528KB full-res image. If the URL already has a query string, append `=w800` after the path (it's a Google path suffix, not a query parameter).
+4. **Mandatory self-vision check BEFORE posting.** Download the `=w800` mockup to `/tmp/design-check-<card-id>.png`, then Read the file (vision-enabled) and explicitly verify against this checklist:
+   - Interaction elements match the PRD (e.g. circular checkboxes are actual circles, not progress bars; toggles are iOS-style toggles, not generic switches).
+   - Tab bar (if rendered) shows Helix's real tabs in order: **Journal, Practices, Insights, Knowledge, Settings**. No invented tabs, no missing tabs, consistent across all panels of a multi-state image.
+   - No Stitch stock imagery leaking through — no human avatars, yoga figures, emoji-style illustrations, or generic profile photos unless the PRD explicitly asks for them.
+   - Design system tokens applied: `#081030 → #000514` background gradient, `#5856D6` accent, `.ultraThinMaterial` glass cards with 16pt corners, `white 55%` secondary text, `white 15%` dividers.
+   - Every acceptance-criteria state from the PRD is clearly visible in the rendered `=w800` image (no state cropped off).
+
+   If any item fails, regenerate (adjust the prompt, re-apply design system) and re-check. Never post a mockup that fails this self-check. Log the vision-check result in the bot comment under a `### Vision QA` subsection (one line per checklist item).
 
 ### Helix Design System
 
@@ -201,6 +209,13 @@ cat > /tmp/design-comment-${CARD_NUMBER}.md <<EOF
 ### Design Notes
 <your notes here>
 EOF
+
+# MANDATORY: verify every image URL in the payload resolves before posting.
+# Broken images must never ship.
+bash "$SCRIPTS/verify-image-urls.sh" /tmp/design-comment-${CARD_NUMBER}.md || {
+  echo "BROKEN IMAGE URL — fix the mockup upload before posting" >&2
+  exit 1
+}
 
 gh issue comment <CARD_NUMBER> --body-file /tmp/design-comment-${CARD_NUMBER}.md
 rm -f /tmp/design-comment-${CARD_NUMBER}.md
