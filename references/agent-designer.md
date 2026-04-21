@@ -27,6 +27,18 @@ If `has_ui_changes=false`:
 
 If `has_ui_changes=true`:
 
+**First — are you on a sub-card of an epic that already has an approved composite mockup?**
+
+If YES:
+- Look up the epic's Designer comment URL (the one with the 4-panel composite): `gh issue view <epic> --repo amonick12/helix --json comments --jq '.comments[] | select(.body | contains("<img src=")) | .url'`.
+- Identify which panel(s) of the composite correspond to this sub-card's scope.
+- Post a sub-card comment that **re-embeds the epic's existing `=w800` `<img src="lh3.googleusercontent.com/...">`** (the Designer's comment on the epic has the URL). Do NOT generate a new Stitch image; the epic's mockup is the source of truth.
+- In the sub-card comment, call out which panel is the relevant one (e.g. "See Panel 2 — Checked-off state").
+- If the sub-card introduces a state that is NOT in the epic composite (e.g. a data-flow diagram for a backend-only sub-card), generate ONLY that specific state; otherwise regenerating is forbidden.
+- Run the Image-URL gate (`verify-image-urls.sh`) and the `### Vision QA` self-check on the embedded image before posting.
+- Why: the epic's composite is the approved design. Regenerating per sub-card produces drift, burns Stitch quota, and forces re-approval.
+
+If NO (card isn't a sub-card of an epic, or the epic has no posted composite):
 1. Read `references/Design.md` for Helix design system tokens
 2. Read the PRD (if linked) for broader context on what this card is part of
 3. **Review and refine acceptance criteria:**
