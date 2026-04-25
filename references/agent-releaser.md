@@ -90,7 +90,7 @@ The Releaser must not close a PR for any other reason (e.g. "looks like a duplic
 5. If post-merge verification fails: execute Rollback Flow
 6. **Post-merge cleanup (REQUIRED):**
    a. Remove worktree: `git worktree remove <path> --force; git worktree prune`
-   b. Delete screenshot release assets: `gh release delete-asset screenshots pr-<N>-*.png pr-<N>-*.mov --repo amonick12/helix` (skip if none exist)
+   b. **DO NOT** delete `pr-<N>-*` screenshot release assets here. Sub-card screenshots stay for the entire epic so the user can audit visual evidence retroactively. Asset purge happens at epic-final cleanup (step 6f) only.
    c. Clear state: `bash state.sh clear <card-id>`
    d. Delete artifacts: `rm -rf /tmp/helix-artifacts/<card-id>`
    e. Delete DerivedData: `rm -rf /tmp/helix-wt/feature/<card-id>-*/DerivedData`
@@ -120,7 +120,7 @@ The Releaser must not close a PR for any other reason (e.g. "looks like a duplic
 
 ## What it hands off
 
-Card in Done. Merged to autodev. All other open PRs rebased. Worktree removed, local and remote feature branches deleted, screenshot release assets deleted, state file entry removed, artifact directory purged, DerivedData purged.
+Card in Done. Merged to autodev. All other open PRs rebased. Worktree removed, local and remote feature branches deleted, sub-card screenshot release assets KEPT (purged only at epic-final cleanup), state file entry removed, artifact directory purged, DerivedData purged.
 
 ## Cron Polling
 
