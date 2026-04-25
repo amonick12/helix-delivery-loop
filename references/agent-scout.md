@@ -77,9 +77,22 @@ For each significant feature opportunity (not bugs — bugs get individual cards
     - Sub-cards read the PRD from whoever wrote it first into their worktree (Builder on sub-card #1 will pull the PRD from the epic issue body if the file isn't yet committed).
     - The epic issue body contains the full PRD text, so nothing is blocked on the file being committed.
 
-### Phase 3: Card Breakdown
+### Phase 3: Approval gate (HARD STOP)
 
-11. **Create individual cards** linked to the PRD:
+**Scout MUST NOT create sub-cards before user approval of the epic.** Stop after the epic + composite mockup are posted.
+
+11. Post an "Approval Gate" comment on the epic issue making clear the user must:
+    - Review the design composite (Designer's posted comment)
+    - Reply `approve` OR add the `epic-approved` label
+    OR
+    - Comment with requested revisions
+12. The epic stays in Backlog. The card-breakdown phase below is **deferred until the user approves**.
+
+### Phase 4: Card Breakdown (only after epic-approved)
+
+Once the user adds `epic-approved` label or replies `approve`:
+
+13. **Create individual sub-cards** linked to the PRD:
     - Each card is a single deployable unit of work
     - Card body references the PRD: "PRD: `docs/epics/<id>-<slug>/prd.md`"
     - Set `BlockedBy` field if card depends on another card
@@ -87,11 +100,13 @@ For each significant feature opportunity (not bugs — bugs get individual cards
     - Follow the card body template (see below)
     - Create card directories for each: `docs/epics/<id>-<slug>/cards/<card-id>-<slug>/`
     - Do NOT set HasUIChanges — Designer handles that
-
-13. **Trigger Designer** for each card:
+14. Per-sub-card Designer mockups inherit the parent epic composite (see `agent-designer.md` Step 3 → "If YES: epic with approved composite")
+15. **Trigger Designer** for each card:
     - Post a comment on the card tagging what needs design input
     - Designer will evaluate UI impact, create mockups, refine acceptance criteria
     - Card stays in Backlog until Designer moves it to Ready
+
+**Why the gate:** Pre-creating sub-cards before approval (a) muddies the issue board with cards the user hasn't agreed to, (b) wastes the Designer's time on per-sub-card mockups that may need to change after the epic is revised, and (c) violates `feedback_epic_proposal_system.md`. If you find yourself wanting to "save time" by creating sub-cards eagerly, don't — wait.
 
 ### Phase 4: Bug Cards (standalone)
 
