@@ -26,6 +26,25 @@ The Releaser runs in two modes depending on what triggered it:
 
 ### Mode B: Merge (user added `user-approved` label)
 
+### Epic TestFlight gate (must run first — no exceptions)
+
+If the PR being merged carries the `epic-testflight-pending` label, **DO NOT MERGE**. Abort with:
+
+```bash
+LABELS=$(gh pr view "$PR" --repo amonick12/helix --json labels --jq '[.labels[].name]')
+if echo "$LABELS" | grep -q epic-testflight-pending; then
+  if echo "$LABELS" | grep -q -E 'epic-final-approved|user-approved'; then
+    # User confirmed after TestFlight testing — clear the gate and continue.
+    gh pr edit "$PR" --repo amonick12/helix --remove-label epic-testflight-pending
+  else
+    echo "ABORT: PR $PR has epic-testflight-pending. Waiting for user to add epic-final-approved or user-approved after testing on TestFlight."
+    exit 0
+  fi
+fi
+```
+
+This guard exists because the last sub-card of an epic triggers `scripts/notify-epic-testflight.sh` (from postagent EC-10) which builds a TestFlight, gathers screenshots, and emails the user. The merge cannot land until the user has had a chance to test on device.
+
 ### Staleness guard (must run first — no exceptions)
 
 Before any rebase attempt, run `check-staleness.sh`:

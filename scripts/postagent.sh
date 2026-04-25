@@ -271,6 +271,24 @@ self_heal() {
       "$SCRIPT_DIR/move-card.sh" --issue "$CARD" --to "In review" 2>/dev/null || true
     fi
   fi
+
+  # EC-10: Epic last-sub-card TestFlight gate.
+  # If THIS card is a sub-card of an epic AND it has both code-review-approved
+  # and visual-qa-approved (regardless of user-approved), check whether it's the
+  # LAST remaining sub-card. If so, fire notify-epic-testflight.sh which builds
+  # TestFlight, gathers screenshots, emails the user, and labels the PR
+  # `epic-testflight-pending` so the Releaser will hold the merge.
+  if [[ "$has_cr" == "true" && "$has_vqa" == "true" ]]; then
+    # Find the parent epic (issue with `epic` label that this card's body references).
+    local body
+    body=$(gh issue view "$CARD" --repo "$REPO" --json body --jq '.body' 2>/dev/null || echo "")
+    local parent_epic
+    parent_epic=$(echo "$body" | grep -oE 'epic #[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+    if [[ -n "$parent_epic" ]]; then
+      log_info "Card #$CARD is a sub-card of epic #$parent_epic — checking completion gate"
+      "$SCRIPT_DIR/notify-epic-testflight.sh" --epic "$parent_epic" 2>&1 | tail -3 || true
+    fi
+  fi
 }
 
 # ── Execute all steps ──────────────────────────────────
