@@ -117,25 +117,27 @@ fi
 # 5. Add the gate label on the last sub-card PR.
 gh pr edit "$last_pr" --repo "$REPO" --add-label "epic-testflight-pending" 2>/dev/null || true
 
-# 6. Send the email.
-#    Prefer Gmail MCP if env var GMAIL_MCP_AVAILABLE=1 indicates the tool loaded;
-#    otherwise fall back to Mail.app via osascript.
-if [[ "${GMAIL_MCP_AVAILABLE:-0}" == "1" ]]; then
-  echo "Gmail MCP path not yet wired — falling back to Mail.app." >&2
-fi
-
-osascript <<APPLESCRIPT 2>&1 || echo "Mail.app compose failed — email body at $EMAIL" >&2
-tell application "Mail"
-    set newMessage to make new outgoing message with properties {subject:"[Helix] Epic #$EPIC ready for TestFlight confirmation — $EPIC_TITLE", visible:true}
-    tell newMessage
-        make new to recipient at end of to recipients with properties {address:"$TO"}
-        set content to (read POSIX file "$EMAIL" as «class utf8»)
-    end tell
-end tell
-APPLESCRIPT
+# 6. Queue the email for the orchestrator to send via Gmail MCP.
+#    Shell scripts cannot invoke MCP tools directly — the /delivery-loop
+#    orchestrator scans this queue at every dispatch and sends each pending
+#    payload via mcp__claude_ai_Gmail__send_message (or whatever tool name the
+#    server publishes once OAuth completes).
+QUEUE_DIR="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
+mkdir -p "$QUEUE_DIR"
+QUEUE_FILE="$QUEUE_DIR/epic-$EPIC.json"
+jq -n \
+  --arg to "$TO" \
+  --arg subject "[Helix] Epic #$EPIC ready for TestFlight confirmation — $EPIC_TITLE" \
+  --arg body "$(cat "$EMAIL")" \
+  --arg epic "$EPIC" \
+  --arg pr "$last_pr" \
+  --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  '{to:$to, subject:$subject, body:$body, epic:($epic|tonumber), last_pr:($pr|tonumber), created_at:$created_at, sent:false}' \
+  > "$QUEUE_FILE"
+echo "Queued email at $QUEUE_FILE — orchestrator will dispatch via Gmail MCP." >&2
 
 # 7. Comment on the epic announcing the gate.
-gh issue comment "$EPIC" --repo "$REPO" --body "bot: **TestFlight gate active.** All sub-cards merged or ready. Final PR #$last_pr labeled \`epic-testflight-pending\`. TestFlight build $BUILD_NUMBER uploaded; email sent to $TO. Add \`epic-final-approved\` to PR #$last_pr after testing on device." 2>/dev/null || true
+gh issue comment "$EPIC" --repo "$REPO" --body "bot: **TestFlight gate active.** All sub-cards merged or ready. Final PR #$last_pr labeled \`epic-testflight-pending\`. TestFlight build $BUILD_NUMBER uploaded; email queued for $TO via Gmail MCP. Add \`epic-final-approved\` to PR #$last_pr after testing on device." 2>/dev/null || true
 
-echo "$status" | jq -c --arg tf "$TF_LINK" --arg pr "$last_pr" --arg build "$BUILD_NUMBER" \
-  '. + {testflight_link: $tf, last_pr: $pr, build_number: $build, gate_label_applied: true, email_composed: true}'
+echo "$status" | jq -c --arg tf "$TF_LINK" --arg pr "$last_pr" --arg build "$BUILD_NUMBER" --arg queue "$QUEUE_FILE" \
+  '. + {testflight_link: $tf, last_pr: $pr, build_number: $build, gate_label_applied: true, email_queued: $queue}'

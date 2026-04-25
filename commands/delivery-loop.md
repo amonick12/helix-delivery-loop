@@ -22,7 +22,19 @@ Continuous feature delivery driven by the GitHub Project board. Eight phase-base
 
 **Every time this command is invoked, DO THIS:**
 
-1. Check for new PR comments:
+1. **Drain the epic-email queue.** Shell scripts can't call MCP tools, so `notify-epic-testflight.sh` writes pending emails to `/tmp/helix-epic-emails-pending/epic-<N>.json`. Before dispatching, send each via Gmail MCP:
+   ```bash
+   QUEUE_DIR="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
+   ls "$QUEUE_DIR"/epic-*.json 2>/dev/null
+   ```
+   For each unsent file (`.sent == false`):
+   - Read the file with `Read` tool to get `{to, subject, body}`.
+   - Invoke `mcp__claude_ai_Gmail__send_message` (or whatever the publish name is once OAuth completes — check via ToolSearch "gmail send") with those args.
+   - On success, mark `.sent = true` in the file via `jq` so it doesn't resend.
+   - On failure (Gmail MCP not auth'd / not loaded): leave the file unchanged and surface a one-line note to the user reminding them to `/mcp` and authenticate "claude.ai Gmail". Continue with the dispatch — don't block.
+   This is a hard pre-dispatch step. Do NOT skip even if the queue looks empty (cheap to check).
+
+2. Check for new PR comments:
    ```bash
    SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"
    NEW_COMMENTS=$(bash "$SCRIPTS/check-pr-comments.sh" 2>/dev/null)
