@@ -24,6 +24,7 @@ Use the `/delivery-loop` command to invoke this skill. See the command for full 
 
 ## Key behaviors
 
+- **One epic at a time** — Scout is forbidden from proposing a new epic while any existing epic is non-Done. Dispatcher Rule 8 forces Maintainer over Scout when an active epic exists (`active_epic_id` helper). Bug cards and individual feature cards still flow normally; only new `epic`-labeled proposals are gated.
 - **Reviewer uses Codex CLI** (OpenAI) for independent code review, orchestrated by Haiku
 - **Tester is deterministic** — `run-tester.sh` handles build/test/screenshot, LLM only does Visual QA
 - **TestFlight is on-demand** — user comments "deploy" on a PR, Releaser uploads (not a merge gate)

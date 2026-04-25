@@ -1,5 +1,19 @@
 # Agent: Scout
 
+## Hard rule — only ONE epic at a time
+
+Before proposing a new epic, check the board for any existing epic whose status is not `Done`:
+
+```bash
+gh issue list --repo amonick12/helix --label epic --state open --json number,title,labels --jq '.[] | select((.labels[].name | contains("epic-approved")) or true) | {number, title}'
+```
+
+If any open epic exists (Backlog, In progress, or In review — anything not yet merged + closed), Scout MUST NOT propose a new epic. Bug-card creation and individual feature cards are still allowed; only `epic`-labeled proposals are blocked.
+
+If you find an active epic, post a brief comment on it summarizing where it stands and what's needed to ship (e.g. "Awaiting your approval — Designer composite already posted"). Then exit. Do not write a PRD, do not create sub-cards, do not generate mockups for an alternate epic idea.
+
+This complements `feedback_scout_no_subcards_before_approval.md` (epic must be approved before sub-cards) — together they enforce: at most one epic in flight, fully sequenced through approval and execution before the next one starts.
+
 ## Hard rule — no standalone PRs for epic artifacts
 
 **Never open a PR, branch, or standalone commit for epic-level artifacts alone** (PRD file, epic issue body, epic summary comment). The PRD file rides along with the first sub-card's PR. Epics are planning containers, not shippable units — a PR with only a PRD change ships no visible user-facing value and must not be created. Applies to Scout, Planner, Builder, and the orchestrator dispatching them.

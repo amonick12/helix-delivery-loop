@@ -169,6 +169,26 @@ model_for() {
   esac
 }
 
+# ── Count active epics ───────────────────────────────────
+# An "active epic" is any issue with the `epic` label that is NOT in the Done column.
+# Used to enforce the one-epic-at-a-time constraint: Scout must not propose a new
+# epic, and the Planner/Builder/Designer must not start work on a different epic's
+# sub-cards while another epic is still in flight.
+active_epic_count() {
+  echo "$BOARD" | jq '[.cards[] | select(
+    any(.labels[]; . == "epic") and (.fields.Status != "Done")
+  )] | length'
+}
+
+# Returns the issue number of the active epic (the one currently being worked on),
+# or empty string if none. Picks the lowest issue number when multiple exist
+# (shouldn't happen with the constraint, but defensive).
+active_epic_id() {
+  echo "$BOARD" | jq -r '[.cards[] | select(
+    any(.labels[]; . == "epic") and (.fields.Status != "Done")
+  )] | sort_by(.issue_number) | .[0].issue_number // ""'
+}
+
 # ── Count cards by status ────────────────────────────────
 in_progress_count() {
   echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "In progress")] | length'
@@ -591,8 +611,19 @@ rule_7b_epic_approval() {
 }
 
 # ── Rule 8: Nothing else → idle agent (scout or maintainer) ──
+# One-epic-at-a-time constraint: if an epic is already in flight (any non-Done
+# card with the `epic` label), force the idle agent to maintainer regardless of
+# IDLE_MODE setting. Scout is forbidden from proposing a second epic until the
+# current one ships. Maintainer can still do code-integrity sweeps without
+# triggering new epic work.
 rule_8_idle() {
   local idle_agent="${IDLE_MODE:-scout}"
+  local active_epic
+  active_epic=$(active_epic_id)
+  if [[ -n "$active_epic" && "$idle_agent" == "scout" ]]; then
+    decide "maintainer" 0 "Scout suppressed: epic #$active_epic still in flight (one-epic-at-a-time). Running code integrity sweep instead." "$(model_for maintainer)"
+    return 0
+  fi
   case "$idle_agent" in
     maintainer)
       decide "maintainer" 0 "No actionable cards, running code integrity sweep" "$(model_for maintainer)"
@@ -870,18 +901,26 @@ dispatch_multi() {
   done < <(echo "$backlog" | jq -c '.[]')
 
   # Rule 8: Idle agent (only if nothing else) — scout or maintainer based on idle_mode
+  # One-epic-at-a-time constraint applies here too: if an epic is in flight,
+  # force maintainer (Scout would otherwise propose a second epic).
   local decision_count
   decision_count=$(echo "$DECISIONS" | jq 'length')
   if [[ "$decision_count" -eq 0 ]]; then
     local idle_agent="${IDLE_MODE:-scout}"
-    case "$idle_agent" in
-      maintainer)
-        add_decision "maintainer" 0 "No actionable cards, running code integrity sweep" "$(model_for maintainer)" || true
-        ;;
-      *)
-        add_decision "scout" 0 "No actionable cards, running discovery" "$(model_for scout)" || true
-        ;;
-    esac
+    local active_epic
+    active_epic=$(active_epic_id)
+    if [[ -n "$active_epic" && "$idle_agent" == "scout" ]]; then
+      add_decision "maintainer" 0 "Scout suppressed: epic #$active_epic still in flight (one-epic-at-a-time). Maintainer instead." "$(model_for maintainer)" || true
+    else
+      case "$idle_agent" in
+        maintainer)
+          add_decision "maintainer" 0 "No actionable cards, running code integrity sweep" "$(model_for maintainer)" || true
+          ;;
+        *)
+          add_decision "scout" 0 "No actionable cards, running discovery" "$(model_for scout)" || true
+          ;;
+      esac
+    fi
   fi
 
   # ── Filter for parallel safety ──────────────────────────
