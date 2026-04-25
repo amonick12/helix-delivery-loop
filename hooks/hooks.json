@@ -54,6 +54,11 @@
           "type": "command",
           "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-screenshot-write.sh",
           "timeout": 5000
+        },
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/protect-plugin-json.sh",
+          "timeout": 5000
         }
       ]
     },
@@ -63,6 +68,21 @@
         {
           "type": "command",
           "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/hook-guard.sh ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/block-screenshot-write.sh",
+          "timeout": 5000
+        },
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/protect-plugin-json.sh",
+          "timeout": 5000
+        }
+      ]
+    },
+    {
+      "matcher": "MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/protect-plugin-json.sh",
           "timeout": 5000
         }
       ]

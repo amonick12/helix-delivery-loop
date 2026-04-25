@@ -32,7 +32,7 @@ Types: gate-failure, rework-cause, pattern, pitfall, performance
 HELP
 
 # ── Paths ──────────────────────────────────────────────────
-LEARNINGS_FILE="${LEARNINGS_FILE:-$REPO_ROOT/.claude/delivery-loop-learnings.json}"
+LEARNINGS_FILE="${LEARNINGS_FILE:-$HELIX_REPO_ROOT/.claude/delivery-loop-learnings.json}"
 VALID_TYPES="gate-failure rework-cause pattern pitfall performance"
 VALID_AGENTS="scout designer planner builder reviewer tester releaser"
 

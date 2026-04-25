@@ -40,6 +40,16 @@
       "started": "2026-04-17T01:48:51Z",
       "ended": null,
       "duration_sec": 0
+    },
+    {
+      "agent": "scout",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-19T21:47:02Z",
+      "ended": null,
+      "duration_sec": 0
     }
   ],
   "totals": {

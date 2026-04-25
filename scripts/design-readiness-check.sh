@@ -90,30 +90,36 @@ else
   CHECKS+=('{"name": "design_url", "status": "skip"}')
 fi
 
-# ── Check 6: Mockup posted with correct URL format (if UI card) ────
+# ── Check 5b: Vision Fit section present (epic cards only) ─
+IS_EPIC=$(echo "$ISSUE_LABELS" | grep -ciE '(^|,)epic(,|$)' || true)
+if [[ "$IS_EPIC" -gt 0 ]]; then
+  if bash "$SCRIPT_DIR/validate-vision-fit.sh" --card "$CARD" >/dev/null 2>&1; then
+    CHECKS+=('{"name": "vision_fit", "status": "pass"}')
+  else
+    CHECKS+=('{"name": "vision_fit", "status": "fail"}')
+    FAILURES+=("Epic missing Vision Fit section (run validate-vision-fit.sh for details)")
+  fi
+else
+  CHECKS+=('{"name": "vision_fit", "status": "skip"}')
+fi
+
+# ── Check 6: Mockup posted with materialized handoff (if UI card) ────
 # Require:
-#   a) an <img src="..."> comment
-#   b) the URL points at lh3.googleusercontent.com (the inline Stitch CDN)
-#   c) the URL ends with =w800 for full-res (not the ~45KB default)
-#
-# These rules come from feedback_stitch_quality.md after 6/9 Designer
-# runs on 2026-04-14 shipped missing or low-res mockups.
+#   a) an <img src="..."> comment with the panels
+#   b) URL points at the `screenshots` GitHub Release (where Designer uploads
+#      the materialized Claude Design panels — survives Anthropic CDN expiry)
 if [[ "$HAS_UI" == "Yes" ]]; then
   COMMENTS_WITH_IMG=$(echo "$ISSUE_JSON" | jq -r '.comments[].body' | grep -oE '<img src="[^"]+"' || true)
 
   if [[ -z "$COMMENTS_WITH_IMG" ]]; then
     CHECKS+=('{"name": "mockup_posted", "status": "fail"}')
-    FAILURES+=("UI card has no <img src=\"...\"> mockup comment")
+    FAILURES+=("UI card has no <img src=\"...\"> mockup comment — Designer should have materialized the Claude Design handoff bundle")
   else
-    LH3_COUNT=$(echo "$COMMENTS_WITH_IMG" | grep -c 'lh3.googleusercontent.com' || true)
-    W800_COUNT=$(echo "$COMMENTS_WITH_IMG" | grep -c '=w800' || true)
+    RELEASE_COUNT=$(echo "$COMMENTS_WITH_IMG" | grep -c "releases/download/screenshots/" || true)
 
-    if [[ "$LH3_COUNT" -eq 0 ]]; then
+    if [[ "$RELEASE_COUNT" -eq 0 ]]; then
       CHECKS+=('{"name": "mockup_posted", "status": "fail"}')
-      FAILURES+=("UI card has <img> but not pointing at lh3.googleusercontent.com — do NOT re-upload Stitch output, use the inline URL directly")
-    elif [[ "$W800_COUNT" -eq 0 ]]; then
-      CHECKS+=('{"name": "mockup_posted", "status": "fail"}')
-      FAILURES+=("UI card mockup URL is missing the =w800 suffix, serving a low-res thumbnail instead of the full 528KB image")
+      FAILURES+=("UI card has <img> but not pointing at the 'screenshots' GitHub Release — Designer must upload materialized panels there so they survive Anthropic CDN expiry")
     else
       CHECKS+=('{"name": "mockup_posted", "status": "pass"}')
     fi

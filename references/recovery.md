@@ -64,18 +64,28 @@ bash $SCRIPTS/read-board.sh --card-id <N> | jq '.cards[0]'  # Check PR state
 3. The `gh_retry` wrapper in config.sh automatically retries with backoff — usually self-heals within 30s
 4. If persistent: increase `BOARD_CACHE_TTL` in config.sh to reduce API calls
 
-## Stitch Token Expired Mid-Design
+## Designer Mockup Build Fails
 
-**Symptoms:** Designer agent fails with "Failed to get gcloud access token."
+**Symptoms:** `generate-design.sh` exits non-zero with `Build failed`, or the simulator screenshot is empty.
 
 **Recovery:**
-```bash
-gcloud auth login
-# Or if using service account:
-gcloud auth activate-service-account --key-file=<path>
-```
-
-The `stitch-api.sh` script caches tokens for 50 minutes (tokens last 60). If the Designer takes >10 minutes, the token is refreshed automatically on the next API call.
+1. Reproduce the build directly:
+   ```bash
+   bash devtools/ios-agent/build.sh
+   ```
+   Read the error. Usually the new SwiftUI mockup file references a token, modifier, or view that doesn't exist (`.glassCard()` typo, missing `import HelixDesignSystem`, etc.).
+2. Fix the offending file in `helix-app/PreviewHost/Mockups/<epic>-<slug>/`. Re-run the build.
+3. If the build passes but the screenshot is blank, the simulator likely launched into the chrome-mode `PreviewHost` instead of the fixture. Verify the panel id is registered in `PreviewHostScreen.all` and matches the `MOCKUP_FIXTURE` value exactly:
+   ```bash
+   grep -n 'PreviewHostScreen(id: "<panel-id>"' helix-app/PreviewHost/PreviewHostAppMode.swift
+   ```
+4. If the panel is registered but the env var isn't reaching the app, verify `launch-app.sh` propagates `MOCKUP_FIXTURE` (it should pass `-MOCKUP_FIXTURE` or set it via `simctl spawn`). If not, set it explicitly:
+   ```bash
+   xcrun simctl launch --terminate-running-process \
+     "$SIMULATOR_UDID" com.amonick.helix \
+     MOCKUP_FIXTURE=<panel-id>
+   ```
+5. After fixing, re-run `generate-design.sh --issue <N> --panels <ids> --regenerate` to capture and post a fresh set.
 
 ## Dead-Lettered Card (3+ Failures)
 

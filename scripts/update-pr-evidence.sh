@@ -169,7 +169,20 @@ NEW_BODY="${ORIGINAL_BODY}
 
 ${EVIDENCE_SECTION}"
 
-gh pr edit "$PR_NUMBER" --repo "$REPO" --body "$NEW_BODY" 2>/dev/null
+BODY_FILE="/tmp/pr-${PR_NUMBER}-evidence-$(date +%s).md"
+printf '%s' "$NEW_BODY" > "$BODY_FILE"
+
+# Gate: every image/media URL referenced in the new body must resolve.
+if ! bash "$SCRIPT_DIR/verify-image-urls.sh" "$BODY_FILE" >/dev/null; then
+  log_error "Image URL verification failed — refusing to post broken images."
+  bash "$SCRIPT_DIR/verify-image-urls.sh" "$BODY_FILE" >&2 || true
+  rm -f "$BODY_FILE"
+  echo "{\"updated\": false, \"error\": \"broken image urls\"}"
+  exit 2
+fi
+
+gh pr edit "$PR_NUMBER" --repo "$REPO" --body-file "$BODY_FILE" 2>/dev/null
+rm -f "$BODY_FILE"
 log_info "Updated PR #${PR_NUMBER} description with Visual QA ${RESULT} and $(echo "$SCREENSHOTS" | wc -w | tr -d ' ') screenshots"
 
 echo "{\"updated\": true, \"result\": \"$RESULT\", \"screenshot_count\": $(echo "$SCREENSHOTS" | wc -w | tr -d ' ')}"

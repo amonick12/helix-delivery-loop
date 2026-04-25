@@ -30,6 +30,44 @@ echo "════════════════════════�
 echo "  DELIVERY LOOP STATUS  $(date +%Y-%m-%d\ %H:%M)"
 echo "═══════════════════════════════════════════════════"
 
+# ── Gmail MCP sentinel (loud alert) ─────────────────────
+GMAIL_DOWN="/tmp/helix-gmail-mcp-down"
+if [[ -f "$GMAIL_DOWN" ]]; then
+  echo ""
+  echo "⚠️  GMAIL MCP IS DOWN — emails are queued but unsent"
+  cat "$GMAIL_DOWN"
+  echo "    Fix: run /mcp and authenticate 'claude.ai Gmail'"
+fi
+
+# ── Awaiting your approval (highest-priority info) ──────
+echo ""
+QUEUE_DIR="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
+WAITING=()
+if [[ -d "$QUEUE_DIR" ]]; then
+  for f in "$QUEUE_DIR"/design-*.json "$QUEUE_DIR"/epic-*.json "$QUEUE_DIR"/dead-letter-*.json; do
+    [[ -f "$f" ]] || continue
+    sent=$(jq -r '.sent // false' "$f" 2>/dev/null || echo "false")
+    [[ "$sent" == "true" ]] || continue   # not yet emailed → user hasn't seen it
+    kind=$(jq -r '.kind // "approval"' "$f" 2>/dev/null || echo "approval")
+    card=$(jq -r '.card // .epic // 0' "$f" 2>/dev/null || echo "0")
+    sent_at=$(jq -r '.created_at // ""' "$f" 2>/dev/null || echo "")
+    if [[ -n "$sent_at" && "$sent_at" != "null" ]]; then
+      now_epoch=$(date +%s)
+      sent_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$sent_at" +%s 2>/dev/null || echo "$now_epoch")
+      hours=$(( (now_epoch - sent_epoch) / 3600 ))
+      WAITING+=("  ⏳ #${card}  ${kind}  emailed ${hours}h ago")
+    else
+      WAITING+=("  ⏳ #${card}  ${kind}  emailed (time unknown)")
+    fi
+  done
+fi
+echo "── Awaiting your approval ────────────────────────"
+if [[ ${#WAITING[@]} -eq 0 ]]; then
+  echo "  ✓  Nothing waiting on you. Loop is autonomous."
+else
+  for line in "${WAITING[@]}"; do echo "$line"; done
+fi
+
 # ── Board summary ──────────────────────────────────────
 echo ""
 echo "── Board ──────────────────────────────────────────"
@@ -130,7 +168,7 @@ fi
 # ── Recent failures ───────────────────────────────────
 echo ""
 echo "── Recent Failures (last 5) ─────────────────────"
-DISPATCH_LOG="$REPO_ROOT/.claude/plugins/helix-delivery-loop/logs/dispatch-log.jsonl"
+DISPATCH_LOG="$HELIX_REPO_ROOT/.claude/plugins/helix-delivery-loop/logs/dispatch-log.jsonl"
 if [[ -f "$DISPATCH_LOG" ]]; then
   ALL_FAILURES=$(bash "$SCRIPTS_DIR/dispatch-log.sh" query --outcome preflight_fail --last 5 2>/dev/null || echo "[]")
   AGENT_ERRORS=$(bash "$SCRIPTS_DIR/dispatch-log.sh" query --outcome agent_error --last 5 2>/dev/null || echo "[]")

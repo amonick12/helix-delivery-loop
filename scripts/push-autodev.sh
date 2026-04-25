@@ -43,7 +43,7 @@ case "$cmd" in
         *) shift ;;
       esac
     done
-    [[ -z "$WORKTREE" ]] && WORKTREE="$REPO_ROOT"
+    [[ -z "$WORKTREE" ]] && WORKTREE="$HELIX_REPO_ROOT"
     SHA=$(git -C "$WORKTREE" rev-parse HEAD)
     log_info "Verifying iOS build at $WORKTREE (HEAD=$SHA)..."
     BUILD_LOG="/tmp/push-autodev-verify-${SHA}.log"

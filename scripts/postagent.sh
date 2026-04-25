@@ -71,6 +71,28 @@ cleanup_worktrees() {
         CLEANUP_WORKTREE="cleanup_failed"
         log_warn "Worktree cleanup failed for card $CARD"
       fi
+
+      # If this PR was the LAST sub-card of an epic, clean the epic's mockups.
+      # The cleanup script preserves any mockup file whose View struct is still
+      # referenced from shipping code (Builder reused it), so this is safe.
+      local epic_id
+      epic_id=$(gh issue view "$CARD" --repo "$REPO" --json body \
+        --jq '.body' 2>/dev/null \
+        | grep -oiE '(\*\*Epic:?\*\*|Epic:|Parent epic:|Part of epic|Epic #)\s*#?[0-9]+' \
+        | grep -oE '[0-9]+' \
+        | head -1 || true)
+      if [[ -n "$epic_id" ]]; then
+        local epic_status
+        epic_status=$("$SCRIPT_DIR/check-epic-completion.sh" --epic "$epic_id" --repo "$REPO" 2>/dev/null || echo '{"all_merged":false}')
+        local all_merged
+        all_merged=$(echo "$epic_status" | jq -r '.all_merged // false')
+        if [[ "$all_merged" == "true" ]]; then
+          log_info "Last sub-card of epic #$epic_id merged — running mockup cleanup"
+          "$SCRIPT_DIR/cleanup-epic-mockups.sh" --epic "$epic_id" 2>&1 \
+            | grep -v "^$" >&2 \
+            || log_warn "Mockup cleanup for epic #$epic_id failed (non-blocking)"
+        fi
+      fi
     else
       log_info "Releaser succeeded (TestFlight deploy) — preserving worktree (PR still open)"
       CLEANUP_WORKTREE="preserved_testflight"
@@ -201,8 +223,74 @@ dead_letter_check() {
         --agent "$AGENT" \
         --outcome "dead_lettered" \
         --error "Exceeded max retries ($FAIL_COUNT failures)" 2>/dev/null || true
+
+      # Queue a notification email so the loop doesn't go silent on the user.
+      # Drained by /delivery-loop's pre-dispatch step alongside design/epic emails.
+      queue_dead_letter_email "$CARD" "$AGENT" "$FAIL_COUNT"
     fi
   fi
+}
+
+queue_dead_letter_email() {
+  local card="$1" agent="$2" fail_count="$3"
+  local to="${EPIC_NOTIFY_TO:-amonick12@gmail.com}"
+  local queue_dir="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
+  mkdir -p "$queue_dir"
+  local queue_file="$queue_dir/dead-letter-${card}.json"
+
+  # If we've already notified for this card, don't re-queue (the file persists
+  # until the orchestrator drains it; rerunning postagent on the same card
+  # shouldn't spam).
+  if [[ -f "$queue_file" ]]; then
+    log_info "Dead-letter email already queued at $queue_file — skipping"
+    return 0
+  fi
+
+  local title issue_url last_error
+  title=$(gh issue view "$card" --repo "$REPO" --json title -q '.title' 2>/dev/null || echo "Card #$card")
+  issue_url="https://github.com/${REPO}/issues/${card}"
+  last_error=$("$SCRIPT_DIR/dispatch-log.sh" failures --card "$card" --agent "$agent" --details 2>/dev/null \
+    | jq -r '.[-1].error // "(no error captured)"' 2>/dev/null || echo "(no error captured)")
+
+  local body_file="/tmp/dead-letter-email-${card}.md"
+  cat > "$body_file" <<EOF
+**Loop is stuck on card #${card} — ${title}**
+
+The ${agent} agent failed ${fail_count} times in a row on this card. The dispatcher will skip it from now on (filtered by the \`dead-letter\` label) until the underlying issue is fixed.
+
+**Card:** ${issue_url}
+**Failing agent:** ${agent}
+**Last error:**
+
+\`\`\`
+${last_error}
+\`\`\`
+
+**To resume the loop on this card:**
+1. Read the failures: \`bash scripts/dispatch-log.sh failures --card ${card}\`
+2. Fix the root cause (usually wrong acceptance criteria, a code conflict, or an environment issue).
+3. Remove the dead-letter label: \`gh issue edit ${card} --repo ${REPO} --remove-label dead-letter\`
+4. Reset the retry counter: \`bash scripts/state.sh set ${card} retry_count_${agent} 0\`
+
+The card will be picked up on the next dispatch.
+
+---
+
+This is a third email category alongside the design-approval and testflight-approval emails. It only fires when an agent gives up; everything else stays autonomous.
+EOF
+
+  jq -n \
+    --arg to "$to" \
+    --arg subject "[Helix] Loop stuck on card #${card} — ${agent} dead-lettered after ${fail_count} failures" \
+    --arg body "$(cat "$body_file")" \
+    --arg card "$card" \
+    --arg agent "$agent" \
+    --arg fail_count "$fail_count" \
+    --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '{to:$to, subject:$subject, body:$body, card:($card|tonumber), agent:$agent, fail_count:($fail_count|tonumber), kind:"dead-letter", created_at:$created_at, sent:false}' \
+    > "$queue_file"
+  rm -f "$body_file"
+  log_info "Queued dead-letter email at $queue_file — orchestrator drains via Gmail MCP"
 }
 
 # ── 8. Prune zombie processes ─────────────────────────
@@ -259,6 +347,29 @@ self_heal() {
   if [[ "$has_cr" == "true" && "$has_vqa" == "true" && "$has_ai" == "false" ]]; then
     log_warn "Self-heal EC-1: Card #$CARD missing tests-passed — applying"
     "$SCRIPT_DIR/apply-tests-passed.sh" --pr "$pr_num" --card "$CARD" 2>/dev/null || true
+  fi
+
+  # EC-7: Planner ran on an epic but produced no sub-cards → escalate.
+  # An epic's job for Planner is to break it into sub-cards (linked issues).
+  # If Planner exits with no linked sub-cards, the loop will stall: nothing
+  # to dispatch Builder against. Detect and route back to Planner with a
+  # clear failure reason so dead-letter triggers after retries.
+  if [[ "$AGENT" == "planner" && "$EXIT_CODE" -eq 0 ]]; then
+    local is_epic
+    is_epic=$(gh issue view "$CARD" --repo "$REPO" --json labels \
+      --jq '[.labels[].name] | any(. == "epic")' 2>/dev/null || echo "false")
+    if [[ "$is_epic" == "true" ]]; then
+      local sub_count
+      sub_count=$(gh issue list --repo "$REPO" --state all --search "linked:issue-${CARD}" \
+        --json number --jq 'length' 2>/dev/null || echo 0)
+      if [[ "${sub_count:-0}" -lt 1 ]]; then
+        log_warn "Self-heal EC-7: Planner ran on epic #$CARD but produced 0 sub-cards"
+        gh issue comment "$CARD" --repo "$REPO" --body "bot: Planner finished but no sub-cards were created. The epic PRD must be broken into individual cards before Builder can run. Re-routing Planner." 2>/dev/null || true
+        # Treat as a Planner failure for retry-counting purposes
+        EXIT_CODE=1
+        ERROR_MSG="Planner produced 0 sub-cards on epic #$CARD"
+      fi
+    fi
   fi
 
   # EC-9: Has tests-passed but card still In Progress → move to In Review

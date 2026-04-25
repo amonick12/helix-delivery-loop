@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 
-LOG_DIR="$REPO_ROOT/.claude/plugins/helix-delivery-loop/logs"
+LOG_DIR="$HELIX_REPO_ROOT/.claude/plugins/helix-delivery-loop/logs"
 LOG_FILE="$LOG_DIR/dispatch-log.jsonl"
 ARCHIVE_FILE="$LOG_DIR/dispatch-log-archive.jsonl"
 

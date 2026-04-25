@@ -51,8 +51,9 @@ TOTAL=$(echo "$OUTPUT" | jq -r '.total')
 CHECKED=$(echo "$OUTPUT" | jq -r '.checked')
 
 assert "$ALL_CHECKED" "false" "all_checked should be false when nothing checked"
-# 3 acceptance criteria + 14 quality gates = 17 total
-assert "$TOTAL" "17" "total should be 17 (3 criteria + 14 gates)"
+# 3 acceptance criteria + 4 quality-gate roll-ups (Builder gates, Code review,
+# Visual QA, TestFlight) = 7 total, matching card-schema.md's Approval Checklist
+assert "$TOTAL" "7" "total should be 7 (3 criteria + 4 gate roll-ups)"
 assert "$CHECKED" "0" "checked should be 0"
 
 # ── Test 4: Check off a specific criterion ─────────────
@@ -148,8 +149,8 @@ export MOCK_ISSUE_BODY
 
 OUTPUT=$(DRY_RUN=1 bash "$UPDATE_SCRIPT" --pr 42 --card 137 2>/dev/null)
 TOTAL=$(echo "$OUTPUT" | jq -r '.total')
-# Should have 14 quality gate checkboxes
-assert "$TOTAL" "14" "should have 14 quality gate checkboxes when no acceptance criteria"
+# Should have 4 quality-gate roll-up checkboxes when no acceptance criteria
+assert "$TOTAL" "4" "should have 4 quality gate roll-ups when no acceptance criteria"
 
 # ── Test 8: Mixed checked/unchecked ────────────────────
 echo "Test 8: Mixed checked and unchecked items"

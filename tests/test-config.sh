@@ -49,9 +49,15 @@ assert_set COST_OUTPUT_SONNET
 assert_set SIMULATOR_UDID
 assert_set SIMULATOR_LOCK
 
-# Stitch
-assert_set STITCH_PROJECT_ID
-assert_set STITCH_MCP_URL
+# Mockups (SwiftUI)
+assert_set MOCKUP_DIR
+assert_set MOCKUP_REGISTRY_FILE
+assert_set MOCKUP_FIXTURE_ENV
+assert_set MOCKUP_BUILD_SCRIPT
+assert_set MOCKUP_LAUNCH_SCRIPT
+assert "$MOCKUP_FIXTURE_ENV" "MOCKUP_FIXTURE" "MOCKUP_FIXTURE_ENV is the env var name"
+assert "$(basename "$MOCKUP_DIR")" "Mockups" "MOCKUP_DIR points at PreviewHost/Mockups"
+assert "$(basename "$MOCKUP_REGISTRY_FILE")" "EpicMockupRegistry.swift" "registry file is EpicMockupRegistry.swift"
 
 # Paths
 assert_set REPO_ROOT

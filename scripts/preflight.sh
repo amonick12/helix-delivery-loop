@@ -70,6 +70,22 @@ add_check() {
   fi
 }
 
+# ── Universal check: simulator UDID still valid for sim-using agents ─
+check_simulator_present() {
+  if needs_simulator "$AGENT"; then
+    if [[ -z "${SIMULATOR_UDID:-}" ]]; then
+      add_check "simulator_udid" "fail" "SIMULATOR_UDID is empty (device not found by name '$SIMULATOR_NAME')"
+      return 1
+    fi
+    if ! xcrun simctl list devices 2>/dev/null | grep -q "$SIMULATOR_UDID"; then
+      add_check "simulator_udid" "fail" "Simulator UDID $SIMULATOR_UDID not found by xcrun simctl — device drift or deletion"
+      return 1
+    fi
+    add_check "simulator_udid" "pass" "$SIMULATOR_UDID present"
+  fi
+  return 0
+}
+
 # ── Read board data for this card ───────────────────────
 get_card_status() {
   local card_id="$1"
@@ -151,6 +167,29 @@ check_builder() {
     add_check "worktree_exists" "pass" "Worktree exists at $WT_PATH"
   else
     add_check "worktree_exists" "fail" "No worktree found for card #$CARD"
+  fi
+
+  # 4. Dependency ordering: if the card body has "Depends on #X", verify X's
+  # branch exists and is at least at autodev's HEAD before letting Builder
+  # proceed. Otherwise the dependent card builds against work that hasn't
+  # shipped yet.
+  DEPENDS_ON=$(gh issue view "$CARD" --repo "$REPO" --json body --jq '.body' 2>/dev/null \
+    | grep -oE 'Depends on #[0-9]+' \
+    | grep -oE '[0-9]+' \
+    | head -1 || true)
+  if [[ -n "$DEPENDS_ON" ]]; then
+    # Find dep's branch from gh PR list
+    DEP_PR=$(gh pr list --repo "$REPO" --state all --search "linked:issue-${DEPENDS_ON}" \
+      --json number,headRefName,state --limit 1 --jq '.[0]' 2>/dev/null || echo '{}')
+    DEP_STATE=$(echo "$DEP_PR" | jq -r '.state // empty')
+    if [[ "$DEP_STATE" == "MERGED" ]]; then
+      add_check "dependency_satisfied" "pass" "Dependency #$DEPENDS_ON merged"
+    elif [[ -n "$DEP_STATE" ]]; then
+      DEP_BRANCH=$(echo "$DEP_PR" | jq -r '.headRefName // empty')
+      add_check "dependency_satisfied" "fail" "Dependency #$DEPENDS_ON is $DEP_STATE on branch $DEP_BRANCH; Builder must branch from $DEP_BRANCH (not autodev) until it merges"
+    else
+      add_check "dependency_satisfied" "fail" "Dependency #$DEPENDS_ON has no PR yet — Builder cannot proceed; route to dependency first"
+    fi
   fi
 }
 
@@ -261,6 +300,9 @@ check_scout() {
     add_check "no_active_agents" "fail" "Active agents found: $ACTIVE_AGENTS"
   fi
 }
+
+# ── Universal preflight: simulator UDID drift ─────────
+check_simulator_present || true
 
 # ── Dispatch agent checks ──────────────────────────────
 case "$AGENT" in

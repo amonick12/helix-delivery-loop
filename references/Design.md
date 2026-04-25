@@ -1,24 +1,18 @@
 # Helix Design System
 
-Reference for generating UI mockups via Google Stitch. Agents include relevant sections in Stitch prompts to ensure generated mockups match the Helix app.
+Reference for the Designer agent. Designs are written by the Designer (Opus 4.7) as **real SwiftUI views** in `helix-app/PreviewHost/Mockups/` using the tokens below. Mockups are screenshot from the simulator — they cannot drift from the shipping app because they *are* the app's design system.
 
-## Stitch Project
-
-All mockups go in ONE project. Always apply the design system after generating.
-
-| Field | Value |
-|-------|-------|
-| **Project ID** | `4588124996861941974` |
-| **Design System Asset ID** | `15540506800766488887` |
-| **Design System Name** | Helix Dark |
+The tokens below mirror `Color+Theme.swift` and `HelixDesignSystem.glassCard()`. Update both whenever a token changes.
 
 ## Platform
+
 - iOS 26 with liquid glass material system
 - SwiftUI native components
 - Dark theme only (no light mode)
 
 ## Background Themes (user-configurable in Settings)
-The default is **Ocean** but users pick their theme. Use Ocean for mockups.
+
+Default is **Ocean**; mockups should always render Ocean unless a card specifies otherwise.
 
 | Theme | Top | Bottom |
 |-------|-----|--------|
@@ -31,6 +25,7 @@ The default is **Ocean** but users pick their theme. Use Ocean for mockups.
 | Ember Night | `#2A1A1C` | `#5A3431` |
 
 ## Color Tokens (from Color+Theme.swift)
+
 | Token | Value | Usage |
 |-------|-------|-------|
 | `Color.helixAccent` | `Color.indigo` ≈ `#5856D6` | Primary accent / interactive |
@@ -38,100 +33,85 @@ The default is **Ocean** but users pick their theme. Use Ocean for mockups.
 | `Color.helixBorder` | `white 15%` | Borders and dividers |
 | `.darkGradientBackground()` | Theme gradient | App-wide background |
 | `.glassCard()` | `.ultraThinMaterial` + 16pt radius + 0.5pt border | Card surfaces |
-| `.glassCapsule()` | `.ultraThinMaterial` capsule + 0.5pt border | Tags/badges |
+| `.glassCapsule()` | `.ultraThinMaterial` capsule + 0.5pt border | Tags / badges |
 
 ## Typography
-- All text uses `helixFont` modifier tied to `SettingsService.appFontStyle`
-- Default font: Inter (system)
-- Semantic styles: `.headline`, `.subheadline`, `.body`, `.caption`, `.caption2`
-- Weight variants: `.weight(.semibold)`, `.weight(.bold)`
-- Never hardcode fonts — always use the `helixFont` system
+
+- All text uses `helixFont` modifier tied to `SettingsService.appFontStyle`.
+- Default font: Inter (system).
+- Semantic styles: `.headline`, `.subheadline`, `.body`, `.caption`, `.caption2`.
+- Weight variants: `.weight(.semibold)`, `.weight(.bold)`.
+- Never hardcode fonts — always use `helixFont`.
 
 ## Component Patterns
 
-### Section Cards
+### Section cards
 `.ultraThinMaterial` background, 16pt corner radius, `helixBorder` 0.5pt stroke, 16px internal padding.
 
-### Tag Pills
+### Tag pills
 Glass capsule, caption text, tint-colored icon + white text.
 
-### Stat Badges
+### Stat badges
 Vertical stack: icon (tint), value (white, semibold), label (secondary, caption2).
 
-### Disclosure Groups
-Chevron-animated expand/collapse, indigo accent color on chevron and icon.
+### Disclosure groups
+Chevron-animated expand/collapse, indigo accent on chevron and icon.
 
-### Tab Bar
-5 tabs: Journal, Practices, Insights, Knowledge, Settings. SF Symbols icons.
+### Tab bar
+**Six tabs** in this order, with these exact SF Symbols (from `helix-app/App/HelixTabView.swift`):
+1. **Today** — `house.fill`
+2. **Journal** — `book`
+3. **Practices** — `figure.mind.and.body`
+4. **Insights** — `chart.line.uptrend.xyaxis`
+5. **Knowledge** — `books.vertical`
+6. **Settings** — `gearshape`
+
+The tab bar itself is **iOS 26 liquid glass** (`.tabViewStyle(.sidebarAdaptable)` plus the system glass material — translucent over the content, with the same refraction the cards have). Mockups must render the bar as glass, not opaque, not a solid stroke.
 
 ### Navigation
 Large title style, top-right profile/menu button.
 
 ### Lists
-Card-based rows (not plain List rows). Each card is a glass surface with internal padding.
+Card-based rows (not plain `List` rows). Each card is a glass surface with internal padding.
 
 ## Layout
-- Horizontal padding: 16px standard
-- Card spacing: 12-16px between cards
-- Section spacing: 20-24px between sections
+
+- Horizontal padding: 16px
+- Card spacing: 12–16px
+- Section spacing: 20–24px
 - Safe area respected on all edges
 
 ## iOS 26 Liquid Glass
+
 - Use `Glass` material for card surfaces
-- Subtle light refraction effect on overlapping elements
-- Translucent backgrounds that show depth
-- No opaque solid backgrounds on cards — always glass/translucent
+- Subtle light refraction on overlapping elements
+- Translucent backgrounds — never opaque solids on cards
 - System blur materials where appropriate
 
-## Stitch Prompt Template
-
-When generating mockups, agents MUST structure prompts like:
-
-```
-Generate an iOS 26 mobile app screen mockup for [screen name].
-
-Design system:
-- Dark theme: Ocean gradient background (#081030 → #000514)
-- Glass cards: ultra-thin material (frosted glass), 16pt corner radius, subtle 0.5pt border
-- Accent color: indigo #5856D6
-- Secondary text: white 55%
-- Font: Inter
-- 16px horizontal padding, 12px card spacing
-- iOS 26 liquid glass aesthetic
-
-Screen content:
-[describe what the screen shows — sections, cards, data, interactions]
-
-The mockup should look like a native iOS 26 app with Apple's liquid glass material system. Cards should have frosted translucent glass surfaces, not opaque backgrounds.
-```
-
-After generating, ALWAYS apply the Helix Dark design system (asset `15540506800766488887`) to normalize colors and fonts.
-
-## Existing Screens (for context in prompts)
+## Existing Screens (context for Claude Design prompts)
 
 ### Journal Tab
-- List of journal entry cards with title, subtitle, date, tag pills
-- Floating compose button (bottom-right)
-- Tag filter bar (horizontal scroll, top)
+List of journal entry cards with title, subtitle, date, tag pills. Floating compose button (bottom-right). Tag filter bar (horizontal scroll, top).
 
 ### Journal Entry Detail
-- Full entry text, AI-generated insights section, cognition insights (patterns, connected entries, themes)
-- Chat interface at bottom for journal conversations
+Full entry text, AI-generated insights section, cognition insights (patterns, connected entries, themes). Chat interface at the bottom for journal conversations.
 
 ### Insights Tab
-- Weekly Review card (collapsible, stat badges)
-- Insight Report with mood trend, themes, recommended prompts
-- Cognition Activity Feed
-- "Ask Helix" floating button
+Weekly Review card (collapsible, stat badges). Insight Report with mood trend, themes, recommended prompts. Cognition Activity Feed. "Ask Helix" floating button.
 
 ### Practices Tab
-- Practice cards with title, category icon, duration
-- Filter by category
+Practice cards with title, category icon, duration. Filter by category.
 
 ### Knowledge Tab
-- Domain/module/deep-dive hierarchy
-- Article cards with bookmarking
+Domain / module / deep-dive hierarchy. Article cards with bookmarking.
 
 ### Settings Tab
-- Grouped settings rows
-- Data export, reset, font selection, AI provider config
+Grouped settings rows. Data export, reset, font selection, AI provider config.
+
+## When to update this file
+
+- A new color token, glass material, or component pattern lands in `Color+Theme.swift` or the design system extensions.
+- A new top-level screen is introduced.
+- A theme is added/removed in Settings.
+
+The Designer reads this file as authoritative reference when authoring SwiftUI mockup views. Keep the table values identical to the live `Color+Theme.swift` constants.

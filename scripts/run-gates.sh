@@ -153,7 +153,7 @@ LINT_RESULT="pass"
 if command -v swiftlint &>/dev/null; then
   CHANGED_SWIFT=$(cd "$WORKTREE" && git diff --name-only "origin/$BASE_BRANCH"...HEAD -- '*.swift' 2>/dev/null | grep -v Tests/ || true)
   if [[ -n "$CHANGED_SWIFT" ]]; then
-    LINT_ERRORS=$(cd "$WORKTREE" && echo "$CHANGED_SWIFT" | xargs swiftlint lint --config "$REPO_ROOT/.swiftlint.yml" --quiet 2>/dev/null | grep -c ": error:" || echo 0)
+    LINT_ERRORS=$(cd "$WORKTREE" && echo "$CHANGED_SWIFT" | xargs swiftlint lint --config "$HELIX_REPO_ROOT/.swiftlint.yml" --quiet 2>/dev/null | grep -c ": error:" || echo 0)
     if [[ "$LINT_ERRORS" -gt 0 ]]; then
       LINT_RESULT="fail"
       log_error "FAIL: SwiftLint — $LINT_ERRORS errors"
@@ -166,6 +166,17 @@ if command -v swiftlint &>/dev/null; then
 else
   log_warn "SwiftLint not installed — skipping"
   LINT_RESULT="skip"
+fi
+
+# ── Gate 4b: SwiftData Schema Migration ─────────────────
+log_info "Gate: SwiftData Schema Migration"
+SCHEMA_RESULT="pass"
+SCHEMA_OUT=$(bash "$SCRIPT_DIR/check-schema-migration.sh" --worktree "$WORKTREE" --base "$BASE_BRANCH" 2>&1) || SCHEMA_RESULT="fail"
+if [[ "$SCHEMA_RESULT" == "fail" ]]; then
+  log_error "FAIL: SwiftData @Model changed without migration plan"
+  echo "$SCHEMA_OUT" | tail -20 >&2
+else
+  log_info "PASS: Schema migration"
 fi
 
 # ── Gate 5: Static Checks (advisory) ─────────────────────
@@ -259,6 +270,7 @@ jq -n \
   --arg unit_tests "$UNIT_RESULT" \
   --arg package_tests "$PKG_RESULT" \
   --arg swiftlint "$LINT_RESULT" \
+  --arg schema_migration "$SCHEMA_RESULT" \
   --arg static_checks "$STATIC_RESULT" \
   --arg uitest_compilation "$UITEST_RESULT" \
   --arg snapshot_tests "$SNAPSHOT_RESULT" \
@@ -274,6 +286,7 @@ jq -n \
     unit_tests: $unit_tests,
     package_tests: $package_tests,
     swiftlint: $swiftlint,
+    schema_migration: $schema_migration,
     static_checks: $static_checks,
     uitest_compilation: $uitest_compilation,
     snapshot_tests: $snapshot_tests,

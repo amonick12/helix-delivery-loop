@@ -22,8 +22,8 @@ Commands:
   apply     Auto-apply safe optimizations (--dry-run to preview)
 HELP
 
-GATE_TIMING_FILE="${GATE_TIMING_FILE:-$REPO_ROOT/.claude/delivery-loop-gate-timing.json}"
-OPTIMIZATION_LOG="$REPO_ROOT/.claude/delivery-loop-optimizations.json"
+GATE_TIMING_FILE="${GATE_TIMING_FILE:-$HELIX_REPO_ROOT/.claude/delivery-loop-gate-timing.json}"
+OPTIMIZATION_LOG="$HELIX_REPO_ROOT/.claude/delivery-loop-optimizations.json"
 
 ensure_timing_file() {
   if [[ ! -f "$GATE_TIMING_FILE" ]]; then

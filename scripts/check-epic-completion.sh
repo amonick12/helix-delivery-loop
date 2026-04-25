@@ -115,6 +115,7 @@ jq -n \
     last_pr: $last_pr,
     last_card: $last_card,
     ready_for_testflight: ($ready_bool == "true"),
+    all_merged: (($total | tonumber) > 0 and $merged == $total),
     reason: $reason,
     sub_cards: $sub_cards
   }'

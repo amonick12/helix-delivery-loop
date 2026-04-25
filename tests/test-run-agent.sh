@@ -81,7 +81,7 @@ MODEL_LINE=$(echo "$STDERR_OUTPUT" | grep "^MODEL=" || echo "")
 MODEL_VAL=$(echo "$MODEL_LINE" | sed 's/MODEL=//')
 assert "$MODEL_VAL" "opus" "Builder defaults to opus model"
 
-# ── Test 6: Builder with --rework uses sonnet ──────────
+# ── Test 6: Builder with --rework uses opus (best model when fixing mistakes) ──
 STDERR_OUTPUT=$(bash "$SCRIPT_DIR/run-agent.sh" prepare builder --card 42 --rework 2>&1 >/dev/null || true)
 MODEL_LINE=$(echo "$STDERR_OUTPUT" | grep "^MODEL=" || echo "")
 MODEL_VAL=$(echo "$MODEL_LINE" | sed 's/MODEL=//')
@@ -112,7 +112,7 @@ MODEL_LINE=$(echo "$STDERR_OUTPUT" | grep "^MODEL=" || echo "")
 MODEL_VAL=$(echo "$MODEL_LINE" | sed 's/MODEL=//')
 assert "$MODEL_VAL" "opus" "Planner defaults to opus"
 
-# ── Test 10a: Reviewer defaults to opus ────────────────
+# ── Test 10a: Reviewer defaults to haiku (orchestrates Codex CLI; haiku is cheap) ──
 make_board '{
   "cards": [{
     "item_id":"I1","issue_number":42,"title":"Fix navigation","url":"https://github.com/amonick12/helix/issues/42",
@@ -123,7 +123,7 @@ make_board '{
 STDERR_OUTPUT=$(bash "$SCRIPT_DIR/run-agent.sh" prepare reviewer --card 42 2>&1 >/dev/null || true)
 MODEL_LINE=$(echo "$STDERR_OUTPUT" | grep "^MODEL=" || echo "")
 MODEL_VAL=$(echo "$MODEL_LINE" | sed 's/MODEL=//')
-assert "$MODEL_VAL" "opus" "Reviewer defaults to opus"
+assert "$MODEL_VAL" "haiku" "Reviewer's Claude orchestrator defaults to haiku (the actual review runs in OpenAI Codex CLI; Claude just shells out to it, so haiku is fine)"
 
 # ── Test 10b: Tester defaults to sonnet ────────────────
 STDERR_OUTPUT=$(bash "$SCRIPT_DIR/run-agent.sh" prepare tester --card 42 2>&1 >/dev/null || true)

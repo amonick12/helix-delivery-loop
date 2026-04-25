@@ -12,7 +12,7 @@ Scout → Designer → Planner → Builder → Reviewer → Tester → Releaser
 |-------|-------|------|
 | **Scout** | Sonnet | Product strategist — writes PRDs, creates epic and bug cards |
 | **Maintainer** | Opus | Codebase health — refactors, tech debt, dependency updates |
-| **Designer** | Sonnet | Evaluates UI impact, generates [Stitch](https://stitch.withgoogle.com) mockups, refines acceptance criteria |
+| **Designer** | Opus | Writes SwiftUI mockup views in `helix-app/PreviewHost/Mockups/`, screenshots them through the simulator, posts panels and queues the approval email |
 | **Planner** | Opus | Writes technical spec, failing tests (TDD red phase), breaks epics into sub-cards |
 | **Builder** | Opus | Implements code to pass all tests, runs quality gates, creates PR |
 | **Reviewer** | Haiku | Code review via Codex CLI — checks CLAUDE.md compliance, posts findings |
@@ -62,6 +62,8 @@ Evaluated top to bottom, first match wins:
 5. Card In Progress with `handoff_from: planner` → Builder
 6. Card in Ready (WIP < 4) → Planner
 7. Card in Backlog without `HasUIChanges` set → Designer
+7c. UI card in Backlog with new user comment after last Designer post → Designer (regenerate)
+7b. Epic in Backlog with `approve` / `epic-approved` → Ready + Planner
 8. Nothing else → Scout
 
 ## Quality Gates
@@ -82,23 +84,33 @@ Evaluated top to bottom, first match wins:
 Epics are never built as a single PR. The pipeline enforces:
 
 1. **Scout** creates the epic card with a PRD
-2. **Designer** designs all screens together
-3. **Planner** breaks the epic into sub-cards (one PR each)
+2. **Designer** authors SwiftUI mockup views for every visible state, screenshots them through the simulator, posts the panels on the epic card, and queues the approval email via Gmail MCP
+3. **Planner** breaks the epic into sub-cards (one PR each) only after `epic-approved`; each sub-card inherits the epic's panels and uses the Designer's SwiftUI files as the implementation skeleton
 4. Each sub-card goes through the full pipeline independently
 5. Builder and Planner reject epic-labeled cards with guards
 
 ## Design System
 
-Mockups are generated via [Google Stitch](https://stitch.withgoogle.com) with the **Helix Dark** design system:
+Mockups are real SwiftUI views written by the Designer agent (Opus 4.7) into `helix-app/PreviewHost/Mockups/<epic-slug>/<panel>.swift`, registered in `PreviewHostScreen.all`, and screenshot from the simulator via `MOCKUP_FIXTURE=<panel-id>`. Because the views use the actual Helix design system, they cannot drift from the shipping app:
 
-| Token | Value |
-|-------|-------|
-| Background | Ocean gradient `#081030` → `#000514` (user-configurable) |
-| Accent | Indigo `#5856D6` (user-configurable) |
-| Glass cards | `.ultraThinMaterial`, 16pt radius, 0.5pt border |
-| Font | Inter |
-| Stitch Project | `4588124996861941974` |
-| Design System | `15540506800766488887` |
+| Token | Value | SwiftUI usage |
+|-------|-------|---------------|
+| Background | Ocean gradient `#081030` → `#000514` | `.darkGradientBackground()` |
+| Accent | Indigo `#5856D6` | `Color.helixAccent` |
+| Glass cards | `.ultraThinMaterial`, 16pt radius, 0.5pt border | `.glassCard()` |
+| Glass capsules | `.ultraThinMaterial` capsule | `.glassCapsule()` |
+| Secondary text | white 55% | `Color.helixSecondary` |
+| Border / divider | white 15% | `Color.helixBorder` |
+| Font | Inter (system default) | `helixFont(.headline)` etc. |
+| Tab bar | Journal / Practices / Insights / Knowledge / Settings, in order | (real `HelixTabView`) |
+
+**Flow per epic (autonomous, two user touchpoints):**
+
+1. Scout proposes the epic against `docs/product-vision.md`.
+2. Designer authors mockup `.swift` files for every visible state, registers them, builds, screenshots, posts panels on the card, and queues a design-approval email via Gmail MCP.
+3. **You read the email and either:** add `epic-approved` to the card, or comment requesting changes. Comments re-dispatch Designer, which edits the SwiftUI files and emails an updated set.
+4. After approval, Planner splits the epic into sub-cards. Each sub-card inherits the relevant panel and uses the Designer's SwiftUI file as the implementation skeleton.
+5. After every sub-card ships, the existing TestFlight gate sends the second email with simulator screenshots; you approve the merge or comment for changes.
 
 ## Setup
 
@@ -124,8 +136,7 @@ Mockups are generated via [Google Stitch](https://stitch.withgoogle.com) with th
 
 - [Claude Code](https://claude.ai/claude-code) CLI
 - [GitHub CLI](https://cli.github.com/) (`gh`) with project scopes
-- [Google Cloud SDK](https://cloud.google.com/sdk) (`gcloud`) for Stitch mockups
-- Xcode 26+ with iPhone 17 Pro simulator
+- Xcode 26+ with iPhone 17 Pro simulator (Designer screenshots through the real device)
 - App Store Connect API key (for TestFlight uploads)
 
 ## Architecture

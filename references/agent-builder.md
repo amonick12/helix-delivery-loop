@@ -1,5 +1,18 @@
 # Agent: Builder
 
+## TL;DR (read first, descend on demand)
+
+1. Confirm card In Progress + worktree exists (preflight has already done this; trust it).
+2. Read spec at `/tmp/helix-artifacts/<card>/spec.md`, design at `docs/epics/*/cards/<card>-*/design.md` (if UI), and parent PRD if epic sub-card.
+3. **If UI**, locate Designer's mockup view(s) under `helix-app/PreviewHost/Mockups/<epic>-<slug>/<panel>.swift` and copy their structure (modifiers, tokens, copy, SF Symbols) into the shipping feature view; replace sample data with ViewModel bindings. Do not redesign.
+4. Implement to make Planner's failing tests pass. Run `builder-self-review.sh`; fix P1 violations.
+5. UI cards: write XCUITests for new actions, run `verify-ui-requirements.sh`.
+6. Run `run-gates.sh` (build, unit, package, swiftlint, **schema-migration**, static checks). All must pass.
+7. Push, mark PR ready, signal handoff via `run-agent.sh finish builder --card N`.
+8. **Diff size cap: 500 lines** (excluding `__Snapshots__/*.png` and Xcode-generated). Stop and split if over.
+
+PRD inclusion rule, full quality-gate descriptions, and recovery steps are below — descend only when something fails.
+
 ## When it runs
 
 Dispatcher rule #5: card In Progress with `handoff_from: planner` and `handoff_ready: true`. Also rule #3 on rework: `rework_target: builder`.
@@ -34,6 +47,14 @@ Reviewers have flagged this as a P1 regression on PRs #273 and #275 (back-to-bac
    - If epic card, also read the parent `docs/epics/*/prd.md` for context
    - If UI card, read `docs/epics/*/cards/<card-id>-*/design.md` for mockup references (design.md IS committed; spec.md is not)
    - If no artifact spec.md found, fall back to card comments from Planner
+
+5b. **If this is a UI sub-card, locate the Designer's SwiftUI mockup view(s)** under `helix-app/PreviewHost/Mockups/<epic>-<slug>/<panel>.swift`. These are not throwaway — Designer rendered them in the simulator, the user approved the resulting screenshots, and the file is the source of truth for layout, component composition, glass-card usage, color/font tokens, spacing, microcopy, SF Symbol choice, and density. Your job:
+    1. **Read the mockup view file(s) for the panel(s) this card ships** (the panel ids are listed in the design.md or the card body; if absent, list everything in the epic's mockup directory and pick the file whose name matches the screen this card builds).
+    2. **Copy the mockup view's structure** — the SwiftUI hierarchy, modifier chains, glass cards, font/color tokens — into the shipping feature package under `Packages/FeatureXXX/Sources/FeatureXXX/Views/<FeatureView>.swift`.
+    3. **Replace the mockup's hardcoded sample data** with bindings to the real ViewModel: `@State`, `@Bindable`, `@Query`, environment objects, etc. The mockup's sample-data values become the realistic empty/loaded states the ViewModel produces.
+    4. **Wire navigation, taps, and side effects** the spec describes.
+    5. **Do NOT redesign the layout, change spacing, swap components, alter copy, or pick different SF Symbols.** The mockup IS the approved design — your job is to make it work, not to reinterpret it. If the mockup is genuinely impossible to ship as-is (e.g., references a token Helix doesn't have), comment on the card explaining the conflict and request a Designer regeneration via the `redesign-needed` label rather than silently deviating.
+    6. After the feature view ships, the mockup file in `PreviewHost/Mockups/` is auto-cleaned by Releaser unless you reused the View struct name/body directly in shipping code (in which case `cleanup-epic-mockups.sh` detects the reference and preserves the mockup file). Either path is fine; just don't drift visually from the approved panels.
 6. Implement code to make ALL failing tests pass, following CLAUDE.md patterns strictly
 7. Run unit tests frequently during implementation
 8. When all tests pass, run automated self-review:

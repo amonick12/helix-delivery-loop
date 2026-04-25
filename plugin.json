@@ -44,8 +44,8 @@
       },
       "designer": {
         "type": "string",
-        "default": "sonnet",
-        "description": "Model for Designer agent"
+        "default": "opus",
+        "description": "Model for Designer agent (matches Claude Design's Opus 4.7 backbone)"
       },
       "planner": {
         "type": "string",
@@ -78,21 +78,21 @@
         "description": "Model for Maintainer agent (code integrity)"
       }
     },
-    "stitch": {
-      "project_id": {
+    "mockups": {
+      "directory": {
         "type": "string",
-        "default": "4588124996861941974",
-        "description": "Stitch project ID for mockup generation"
+        "default": "helix-app/PreviewHost/Mockups",
+        "description": "Where Designer writes SwiftUI mockup files (auto-compiled by PBXFileSystemSynchronizedRootGroup)"
       },
-      "design_system_id": {
+      "registry_file": {
         "type": "string",
-        "default": "15540506800766488887",
-        "description": "Helix Dark design system asset ID in Stitch"
+        "default": "helix-app/PreviewHost/PreviewHostAppMode.swift",
+        "description": "File where Designer registers new screen entries in PreviewHostScreen.all"
       },
-      "gcp_project": {
+      "env_var": {
         "type": "string",
-        "default": "helix-491623",
-        "description": "GCP project for Stitch API auth"
+        "default": "MOCKUP_FIXTURE",
+        "description": "Env var read by PreviewHostAppMode to boot directly into a named mockup"
       }
     },
     "simulator": {

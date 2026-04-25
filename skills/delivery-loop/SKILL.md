@@ -2,7 +2,7 @@
 name: delivery-loop
 description: >
   Continuous multi-agent delivery loop for Helix iOS app. Use /delivery-loop
-  to dispatch. Eight agents: Scout (PRDs), Maintainer (code integrity), Designer (mockups),
+  to dispatch. Eight agents: Scout (PRDs), Maintainer (code integrity), Designer (Claude Design handoff materializer),
   Planner (spec+TDD), Builder (implementation), Reviewer (Codex CLI code review),
   Tester (deterministic pipeline + Visual QA), Releaser (merge + TestFlight on-demand).
 ---
@@ -15,7 +15,7 @@ Use the `/delivery-loop` command to invoke this skill. See the command for full 
 |-------|-------|---------------|------|
 | **Scout** | Sonnet | #8 (idle, mode=scout) | Product strategy, PRDs, card creation |
 | **Maintainer** | Opus | #8 (idle, mode=maintainer) | Code integrity, bugs, arch violations |
-| **Designer** | Sonnet | #7 (Backlog, no HasUIChanges) | UI evaluation, Stitch mockups, moves to Ready |
+| **Designer** | Opus | #7 (Backlog, no HasUIChanges) | UI evaluation, posts Helix Design System Brief, materializes Claude Design handoff bundles, moves to Ready |
 | **Planner** | Opus | #6 (Ready, WIP < 4) | Spec, failing tests (TDD red), draft PR |
 | **Builder** | Opus | #3/#5 (draft PR) | Implementation, quality gates, marks PR ready |
 | **Reviewer** | Haiku | #4a (ready PR, no code-review-approved) | Codex CLI code review, routes to Builder |

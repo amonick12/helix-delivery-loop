@@ -1,9 +1,3 @@
 {
-  "mcpServers": {
-    "stitch": {
-      "type": "url",
-      "url": "https://stitch.googleapis.com/mcp",
-      "headers": {}
-    }
-  }
+  "mcpServers": {}
 }

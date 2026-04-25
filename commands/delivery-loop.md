@@ -22,17 +22,30 @@ Continuous feature delivery driven by the GitHub Project board. Eight phase-base
 
 **Every time this command is invoked, DO THIS:**
 
-1. **Drain the epic-email queue.** Shell scripts can't call MCP tools, so `notify-epic-testflight.sh` writes pending emails to `/tmp/helix-epic-emails-pending/epic-<N>.json`. Before dispatching, send each via Gmail MCP:
+1. **Drain the approval queue.** Bookkeeping (queue scan, retry counter, sentinels, dead-letter escalation, label flips, dispatch-log entries) is owned by `scripts/drain-emails.sh`. The orchestrator only does the two things shell can't: spawn a subagent for vision QA, and fire `PushNotification` to alert the user that an approval is queued. **No Gmail send.** The user already gets an email automatically from GitHub when Designer/Tester/Releaser posts the panels/screenshots comment on the issue or PR — that's the persistent email channel; we just add an instant push-notification on top.
+
    ```bash
-   QUEUE_DIR="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
-   ls "$QUEUE_DIR"/epic-*.json 2>/dev/null
+   # First: surface the Gmail-MCP-down sentinel loudly if it exists.
+   [[ -f /tmp/helix-gmail-mcp-down ]] && cat /tmp/helix-gmail-mcp-down
+
+   # Then ask the script for a structured plan.
+   PLAN=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/drain-emails.sh" plan)
    ```
-   For each unsent file (`.sent == false`):
-   - Read the file with `Read` tool to get `{to, subject, body}`.
-   - Invoke `mcp__claude_ai_Gmail__send_message` (or whatever the publish name is once OAuth completes — check via ToolSearch "gmail send") with those args.
-   - On success, mark `.sent = true` in the file via `jq` so it doesn't resend.
-   - On failure (Gmail MCP not auth'd / not loaded): leave the file unchanged and surface a one-line note to the user reminding them to `/mcp` and authenticate "claude.ai Gmail". Continue with the dispatch — don't block.
-   This is a hard pre-dispatch step. Do NOT skip even if the queue looks empty (cheap to check).
+
+   For each entry in `PLAN`:
+
+   - `action: "vision_qa"` — spawn a fresh subagent (Explore or general-purpose) with this prompt and the entry's `screenshots[]`:
+     > Read each URL with vision and score against the Helix Quality Bar in `references/vision-qa-prompt.md`. Return JSON: `{"all_pass": bool, "panels": [{"url":"...", "pass": bool, "failures":["..."]}]}`. No prose, JSON only.
+
+     Then call back into the script:
+     - If `all_pass: true` → `bash $SCRIPTS/drain-emails.sh mark-vision-pass --file <file> --note "<one-line summary>"`
+     - If `all_pass: false` → `bash $SCRIPTS/drain-emails.sh mark-vision-fail --file <file> --failures '<json array of failure strings>'`
+
+     The script handles retry counting, dead-letter escalation at retries ≥ 3, label flips (`redesign-needed`, `rework`), PR draft conversion, and dispatch-log entries.
+
+   - `action: "send"` — vision QA passed; alert the user. **Do NOT call Gmail MCP** (no `send_message` tool exists, and Gmail's `create_draft` would just clutter Drafts). The actual approval-content-bearing email arrives automatically from GitHub when Designer/Tester/Releaser posts the panels/screenshots comment on the issue or PR (the user is subscribed to issues they own). Just fire `PushNotification` with `status: "proactive"` and a one-line message naming the card + the label they need to add. Then `bash $SCRIPTS/drain-emails.sh mark-sent --file <file>`. PushNotification suppression ("terminal has focus") is fine — mark sent anyway.
+
+   Re-run `drain-emails.sh plan` once more after acting on every entry — vision-QA passes turn into sends; one drain cycle handles both stages. Do NOT skip this step even if the plan looks empty; it's cheap.
 
 2. Check for new PR comments:
    ```bash
@@ -135,7 +148,8 @@ Only respond with "No actionable cards" when: Backlog=0, Ready=0, all In Progres
 | `init` | Bootstrap project board, fields, columns, screenshots release |
 | `cleanup` | Remove stale worktrees for Done cards |
 | `metrics` | Delivery health stats |
-| `audit` | Self-consistency check: terminology, agent count, permissions, versions |
+| `audit` | Self-consistency check: terminology, agent count, permissions, versions, two-approval contract |
+| `trace <card>` | Full timeline for one card — dispatches, postagent runs, GitHub events, email queue |
 | `evolve` | Cluster learnings into actionable rules with confidence scores |
 
 ## Agent Pipeline
@@ -148,7 +162,7 @@ Scout (epic proposals) → Designer (mockups) → Planner (spec + TDD + cards) �
 |-------|-------|------|
 | **Scout** | Sonnet | Product strategist: writes PRDs, breaks into cards, creates bug cards |
 | **Maintainer** | Opus | Code integrity: finds bugs, race conditions, arch violations, missing tests |
-| **Designer** | Sonnet | Evaluates UI impact, creates Stitch mockups, refines acceptance criteria |
+| **Designer** | Opus | Evaluates UI impact, posts the Helix Design System Brief, materializes Claude Design handoff bundles |
 | **Planner** | Opus | Writes technical spec, failing unit tests (TDD red phase), implementation plan |
 | **Builder** | Opus (Sonnet on rework) | Implements using spec + tests + plan + mockups; runs SwiftLint before push |
 | **Reviewer** | Haiku | Code review via Codex CLI — review only, never modifies code, no simulator |
@@ -180,6 +194,8 @@ Implemented in `scripts/dispatcher.sh`. Evaluated top to bottom, first match win
 | 5 | Card In Progress with draft PR (no `rework` label) | Builder |
 | 6 | Card in Ready (respect WIP limit) | Planner |
 | 7 | Card in Backlog without `HasUIChanges` set | Designer |
+| 7c | UI card in Backlog with a user comment newer than the latest `bot:` Designer post | Designer (regenerate) |
+| 7b | Epic in Backlog with user `approve` / `epic-approved` comment | Move to Ready + Planner |
 | 8 | Nothing else to do | Scout or Maintainer (based on `idle_mode` setting, default: scout) |
 
 **Priority ordering:** P0 > P1 > P2 > P3. Ties broken by issue number (oldest first).
@@ -259,13 +275,13 @@ Estimates based on current Anthropic API pricing (Opus $15/$75, Sonnet $3/$15, H
 |-------|---------------|-----------|
 | Scout | Sonnet | $0.30 |
 | Maintainer | Opus | $2.50 |
-| Designer | Sonnet | $0.25 |
+| Designer | Opus | $0.40 |
 | Planner | Opus | $2.50 |
 | Builder | Opus | $5.00 |
 | Reviewer | Haiku + Codex CLI | $0.50 |
 | Tester | Sonnet | $0.50 |
 | Releaser | Haiku | $0.10 |
-| **Total per card** | | **~$11.65** |
+| **Total per card** | | **~$11.80** |
 
 Tracked by `scripts/track-usage.sh`. Posted to card field + PR comment.
 
@@ -303,6 +319,6 @@ After every agent run, `scripts/postagent.sh` reconciles state: orphaned worktre
 - `${CLAUDE_PLUGIN_ROOT}/agents/` — Agent definitions with model frontmatter
 - `${CLAUDE_PLUGIN_ROOT}/references/quality-gates.md` — All quality gates and pass criteria
 - `${CLAUDE_PLUGIN_ROOT}/references/visual-evidence.md` — Screenshot and recording requirements
-- `${CLAUDE_PLUGIN_ROOT}/references/Design.md` — Helix design system for Stitch prompts
+- `${CLAUDE_PLUGIN_ROOT}/references/Design.md` — Helix design system tokens used in the Claude Design brief
 - `${CLAUDE_PLUGIN_ROOT}/references/card-schema.md` — Card fields and PR template
 - `${CLAUDE_PLUGIN_ROOT}/references/testflight.md` — TestFlight distribution workflow

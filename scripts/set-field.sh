@@ -181,4 +181,4 @@ gh api graphql -f query="
 # Invalidate cache after write
 rm -f "$BOARD_CACHE_FILE" 2>/dev/null
 
-echo "Set $FIELD_NAME=$FIELD_VALUE on item"
+echo "Set $FIELD_NAME=$FIELD_VALUE on item" >&2

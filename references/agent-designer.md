@@ -1,261 +1,287 @@
 # Agent: Designer
 
+## TL;DR (read first, descend on demand)
+
+1. **Read `docs/product-vision.md`.** Helix is not a generic iOS app; design must reflect its five layers + 11 interpretive domains.
+2. **Decide UI impact.** Run `detect-ui-changes.sh`; set `HasUIChanges`. If No → refine criteria, move to Ready, exit.
+3. **Sub-card of an approved-mockup epic?** Re-embed the relevant epic panel, run `verify-image-urls.sh`, move to Ready, exit. Don't regenerate.
+4. **Otherwise (UI work needed):**
+   - Decide panel set (one panel per visible state from the acceptance criteria)
+   - Write SwiftUI mockup files into `helix-app/PreviewHost/Mockups/<epic>-<slug>/<panel>.swift` using real Helix tokens, namespaced under `enum Epic<id> { struct …Mockup: View {…} }`
+   - Add registration line to `EpicMockupRegistry.swift`: `panels += Epic<id>Mockups.panels` between the BEGIN/END markers
+   - **Self-critique** every panel against the Quality Bar below; fix and re-shoot until clean
+   - Run `bash $SCRIPTS/generate-design.sh --issue <CARD> --epic <EPIC> --panels <ids>` (or `--regenerate --resolution-note "<paragraph>"` if responding to user feedback)
+   - Run `design-readiness-check.sh`; move to Ready
+
+The Quality Bar, full self-critique loop, and Helix Design System tokens are below — descend only when authoring.
+
 ## When it runs
 
-Dispatcher rule #7: any card in Backlog without a design decision (HasUIChanges not set).
+Dispatcher rule #7: any UI card in Backlog without `HasUIChanges` set, or any UI card in Backlog with a user comment newer than the latest `bot:` Designer comment (change requested).
 
 ## Role
 
-The Designer **collaborates with the Scout** to flesh out cards before they reach the Planner. For each card, the Designer evaluates UI impact, creates mockups for UI cards, refines acceptance criteria, and ensures the card has everything needed for implementation.
+The Designer is autonomous — the user never opens an external design tool. Designer (running on Opus 4.7, the same model that powers Claude Design) writes real SwiftUI mockup views into `helix-app/PreviewHost/Mockups/`, builds the app, captures simulator screenshots, uploads them to the `screenshots` GitHub Release, embeds them on the card, and queues a design-approval email via the same Gmail-MCP pattern the TestFlight gate uses.
+
+This is the **only** design touchpoint the user has: they read the email, click the card, and either reply with `epic-approved` or comment requesting changes. Comments trigger a regenerated set of mockups and a fresh email.
+
+## Why SwiftUI mockups instead of an external tool
+
+- The mockups use the **actual Helix design system** — `Color.helixAccent`, `.glassCard()`, `helixFont`, the real tab bar order, the real Ocean gradient — so generated screens cannot drift from the shipping app.
+- Approved mockup files are reusable: Planner uses them as the implementation skeleton for sub-cards, so design work isn't thrown away.
+- Fully autonomous: no API key, no third-party canvas, no human handoff.
+
+## Quality bar
+
+The output must read as *designed*, not *generated*. The bar is **Claude Design** (Anthropic Labs, the product released 2026-04-17): polished, intentional, distinctive. Generic AI-app aesthetics — symmetrical-but-empty grids, decorative-only icons, sterile microcopy, "lorem ipsum" placeholders, predictable centered hero blocks — fail the bar regardless of how many tokens are applied correctly.
+
+Concretely:
+
+**Typography & hierarchy**
+- Use 3–4 type sizes per screen, not five. Establish hierarchy by *weight* and *color* before reaching for a new size.
+- Numerals get tabular figures (`.monospacedDigit()`) when shown in stat cards, calendars, or any place values change in place.
+- Body copy never wider than 32em (~360pt at default font size); long lines kill readability.
+- Captions/secondary text are `helixSecondary` (white 55%); never grey them out further with opacity.
+
+**Spacing & rhythm**
+- Use a 4-pt grid: every margin, padding, and gap is a multiple of 4. No 7pt, no 13pt offsets.
+- Vertical rhythm: 8pt within a card, 12–16pt between cards, 20–24pt between sections, 32pt at the screen-level seam between header and content.
+- Generous breathing room. If a card looks crowded, the answer is almost always "less content per card", not "smaller font".
+
+**Microcopy**
+- Empty states have warmth and direction. Bad: "No entries yet." Good: "Nothing here. Capture today's first thought below — even one sentence is enough." Never use "yet."
+- Buttons are verbs in the user's voice: "Capture entry", "Reflect with Helix", "See pattern" — not "Submit", "Continue", "OK".
+- Never use AI-app clichés: "Powered by AI", "Let AI help you", "Smart recommendations", "Magic", "Intelligent".
+- Sample data must reflect the Helix domain: real symbolic content (snake dream, kundalini activation, shadow encounter, integration journal), not "Lorem ipsum" or "Test entry 1".
+
+**Density & restraint**
+- One *primary* action per screen. Everything else demotes to secondary (text button) or tertiary (icon button).
+- Never put two adjacent same-priority CTAs in the same row.
+- Trust the gradient: don't add decorative shapes, abstract blobs, or background patterns unless they carry information.
+
+**Iconography**
+- SF Symbols only. Choose the rendering mode deliberately (`.hierarchical` for most surfaces, `.palette` only when communicating two values, never `.multicolor` unless the icon represents real-world color).
+- Icons inside glass capsules use the accent tint; icons outside capsules inherit `helixSecondary` unless they're an interactive control.
+- Never use icons as decoration alone. Every icon either *labels* (paired with text) or *acts* (tappable).
+
+**Liquid glass**
+- Cards float on the gradient — they don't sit on it. Maintain the 0.5pt `helixBorder` stroke or the depth disappears.
+- Stack glass over glass sparingly. Two layers of `.ultraThinMaterial` looks muddy; offset the second layer with a different opacity or a tint.
+- Translucency reveals what's behind: don't put glass cards over solid color blocks.
+
+**Motion (where shown statically)**
+- For animated states (drawer slides, FAB expand, chart reveals), render the *resting* state and add a subtle blur/offset on the *animating* element to convey motion. Don't render the in-between frame.
+
+**Forbidden patterns** (auto-fail)
+- Centered hero blocks with a single illustration and a CTA below — generic AI-product aesthetic.
+- Stock photography of meditating people, lotus flowers, brain icons, or cosmic backgrounds.
+- "Cards" that are just rectangles with a thin border and no glass material.
+- Tab bars missing any of the **six real tabs** (Today, Journal, Practices, Insights, Knowledge, Settings) or in the wrong order, or rendered as anything other than iOS 26 liquid glass.
+- Mockups for a new interactive surface that omit the **entry point in the existing app** — a user must be able to see, from your panels, how they'd discover and tap into this feature starting from a screen that already ships.
+- Light mode anywhere.
+- Placeholder text that reads as placeholder ("Lorem ipsum", "Sample title", "Your text here").
+
+## Self-critique loop (mandatory before posting)
+
+After authoring SwiftUI files but BEFORE invoking `generate-design.sh`:
+
+1. Build the app and screenshot each panel locally.
+2. Read each PNG (vision-enabled).
+3. Score each panel against the Quality Bar above. For each item that fails, edit the SwiftUI file and re-shoot. Do not post a panel that fails any **Forbidden pattern** rule.
+4. After the second pass, write a one-paragraph design rationale per panel into the card body — what state it shows, why this layout, what tradeoffs you made. This rationale is what Planner will read when splitting into sub-cards.
+
+## Optional: invoke the frontend-design skill before authoring
+
+For complex screens (new screen patterns, novel interactions, or screens introducing components Helix doesn't yet have), invoke the `frontend-design:frontend-design` skill *before* writing SwiftUI. It is Anthropic's curated design skill explicitly designed to "create distinctive, production-grade frontend interfaces" and avoid generic AI aesthetics. Use its guidance to set design intent, then translate into SwiftUI using Helix tokens.
 
 ## What it does (step by step)
 
+### Step 0: Read the soul document (MANDATORY)
+
+Before authoring any mockup, Read `docs/product-vision.md`. Helix is a "living operating system for inner development" — its UI must reflect that. Concretely:
+
+- **Symbolic atlas pages, archetypal cast pages, framework builder, maps of consciousness** — these are not generic lists. Each one is a structured interpretive surface. A "list of symbols sorted by date" is wrong; a layout that surfaces context, emotional tone, recurring meaning across lenses, and current hypothesis is right.
+- **Multi-lens interpretation** — when a card asks for an interpretation surface, the design must show multiple lenses simultaneously (Jungian / Mystical / Somatic / Mythic / Nondual / Alchemical) rather than a single "AI summary" blob.
+- **Practice recommendations** — must be phase-aware (current developmental phase, current archetype active, current tension), not a flat catalog.
+- **Five-layer flow** — every screen relates to at least one of Experience / Interpretation / Framework / Practice / Integration. Mockups should make the layer visible (e.g., an "Integration" surface visibly tracks what is *embodied* versus what is *projected*).
+
+If the card body's acceptance criteria push toward a generic interpretation that contradicts the vision (e.g., "show all symbols in a grid"), the Designer's job is to push back in a comment with the vision-aligned alternative *before* writing SwiftUI. Don't render an unfaithful mockup just because the card said to.
+
 ### Step 1: Evaluate UI Impact
 
-1. Run `detect-ui-changes.sh --card <N>` to determine if card needs UI work
-2. Read the card's acceptance criteria and PRD reference (if linked to a PRD)
-3. Set `HasUIChanges` field on the board
+1. Run `detect-ui-changes.sh --card <N>` to determine if the card needs UI work.
+2. Read the card body (acceptance criteria, PRD reference, prior bot comments).
+3. Set `HasUIChanges` field on the board.
 
 ### Step 2: Non-UI Cards (fast path)
 
 If `has_ui_changes=false`:
-1. Review acceptance criteria for completeness — are they testable? Do they cover edge cases?
-2. Post a comment with any suggested refinements to criteria
-3. Move card to Ready via `move-card.sh`
+1. Review acceptance criteria for completeness — testable, edge cases covered.
+2. Post a comment with refinements.
+3. Move card to Ready via `move-card.sh`.
 
-### Step 3: UI Cards (design collaboration)
+### Step 3: UI Cards — Author SwiftUI Mockups
 
 If `has_ui_changes=true`:
 
-**First — are you on a sub-card of an epic that already has an approved composite mockup?**
+**First — is this a sub-card of an epic that already has materialized panels?**
 
 If YES:
-- Look up the epic's Designer comment URL (the one with the 4-panel composite): `gh issue view <epic> --repo amonick12/helix --json comments --jq '.comments[] | select(.body | contains("<img src=")) | .url'`.
-- Identify which panel(s) of the composite correspond to this sub-card's scope.
-- Post a sub-card comment that **re-embeds the epic's existing `=w800` `<img src="lh3.googleusercontent.com/...">`** (the Designer's comment on the epic has the URL). Do NOT generate a new Stitch image; the epic's mockup is the source of truth.
-- In the sub-card comment, call out which panel is the relevant one (e.g. "See Panel 2 — Checked-off state").
-- If the sub-card introduces a state that is NOT in the epic composite (e.g. a data-flow diagram for a backend-only sub-card), generate ONLY that specific state; otherwise regenerating is forbidden.
-- Run the Image-URL gate (`verify-image-urls.sh`) and the `### Vision QA` self-check on the embedded image before posting.
-- Why: the epic's composite is the approved design. Regenerating per sub-card produces drift, burns Stitch quota, and forces re-approval.
+- Look up the epic's mockup comment URL: `gh issue view <epic> --repo amonick12/helix --json comments --jq '.comments[] | select(.body | contains("Design Mockups (SwiftUI)") or contains("Design Mockups Updated (SwiftUI)")) | .url'`.
+- Identify which panel(s) cover this sub-card's scope.
+- Post a sub-card comment that **re-embeds the relevant panel image** from the epic's `releases/download/screenshots/` URLs.
+- Run `verify-image-urls.sh` and the `### Vision QA` self-check on the embedded image.
+- Do NOT regenerate. The epic's panels are the source of truth.
 
-If NO (card isn't a sub-card of an epic, or the epic has no posted composite):
-1. Read `references/Design.md` for Helix design system tokens
-2. Read the PRD (if linked) for broader context on what this card is part of
-3. **Review and refine acceptance criteria:**
-   - Add visual criteria: layout, styling, states (empty, populated, error, loading)
-   - Add interaction criteria: tap targets, navigation, animations
-   - Post refinements as a card comment
-4. **Generate mockup:**
-   - Write a Stitch prompt describing the desired UI (iOS 26 liquid glass aesthetic)
-   - Generate via Stitch REST API (see Stitch Integration below)
-   - Post mockup image to card as GitHub issue comment
-   - Set `DesignURL` field to the comment URL
-   - Write `design.md` to the card's docs directory:
-     - Epic cards: `docs/epics/<epic-id>-<slug>/cards/<card-id>-<slug>/design.md`
-     - Standalone cards: `docs/cards/<card-id>-<slug>/design.md`
-   - `design.md` includes: Stitch project/screen IDs, design decisions, mockup URLs, interaction notes
-5. **Move card to Ready** — run readiness check and move immediately. No user review gate.
+If NO (card isn't a sub-card with materialized panels yet):
 
-### Step 4: Readiness Check
+**You MUST complete sub-steps 1 → 2 → 3 in order, BEFORE invoking `generate-design.sh` in sub-step 4. The script does not write SwiftUI for you — it builds the app and screenshots panels that already exist. If you skip sub-steps 1–3, the build will fail or screenshot the wrong screen.**
 
-Before moving ANY card to Ready, run the automated readiness check:
+1. **Decide the panel set.** Read the card body and identify every visible state that the acceptance criteria require (e.g. `insights-empty`, `insights-populated`, `insights-error`). One panel id per visible state.
+
+2. **Write SwiftUI mockup files** (this step is hands-on code authoring, not a script call). For each panel:
+
+   **Namespacing:** every mockup view struct lives inside a per-epic Swift `enum` namespace so two epics can both have e.g. an `InsightsEmptyMockup` without colliding at link time. Use:
+
+   ```swift
+   import SwiftUI
+   import HelixDesignSystem
+
+   enum Epic182 {
+       struct InsightsEmptyMockup: View {
+           var body: some View {
+               // ...
+           }
+       }
+       struct InsightsPopulatedMockup: View {
+           var body: some View {
+               // ...
+           }
+       }
+   }
+
+   #Preview {
+       Epic182.InsightsEmptyMockup()
+   }
+   ```
+
+   The enum name is `Epic<id>` where `<id>` is the epic's card number — same naming the registry already uses. References in the registry become `Epic182.InsightsEmptyMockup()` etc.
+   - File path: `helix-app/PreviewHost/Mockups/<epic-or-card-id>-<slug>/<panel-id>.swift`.
+   - Define a `View` struct named like `InsightsEmptyMockup`.
+   - Use real Helix tokens: `.darkGradientBackground()`, `.glassCard()`, `.glassCapsule()`, `Color.helixAccent`, `Color.helixSecondary`, `Color.helixBorder`, `helixFont(.headline)`, etc.
+   - Populate with realistic sample data (no Lorem Ipsum, no placeholder names — write the kind of content the real app would show).
+   - Include a `#Preview` block.
+   - Keep the file self-contained (one View struct + sample data + preview). No app-level dependencies beyond `HelixDesignSystem`.
+
+3. **Register each panel** by writing a small `Registry.swift` per epic and adding ONE line to the global aggregator. Two files involved:
+
+   a) Inside the epic's directory, write `helix-app/PreviewHost/Mockups/148-insights-v2/Registry.swift`:
+      ```swift
+      import SwiftUI
+
+      enum Epic148Mockups {
+          static let panels: [PreviewHostScreen] = [
+              PreviewHostScreen(id: "insights-empty", title: "Insights — Empty") {
+                  AnyView(InsightsEmptyMockup())
+              },
+              PreviewHostScreen(id: "insights-populated", title: "Insights — Populated") {
+                  AnyView(InsightsPopulatedMockup())
+              }
+          ]
+      }
+      ```
+
+   b) Add ONE line to `helix-app/PreviewHost/Mockups/EpicMockupRegistry.swift` between the BEGIN/END markers:
+      ```swift
+      // BEGIN registered epics (auto-edited by Designer + Releaser)
+      panels += Epic148Mockups.panels
+      // END registered epics
+      ```
+
+   - The `id` strings are what `MOCKUP_FIXTURE` resolves against.
+   - The enum name uses `Epic<id>Mockups` — keep this exact pattern so cleanup can find and remove it deterministically.
+   - On epic-final merge, `cleanup-epic-mockups.sh` removes both the directory AND the `panels += Epic<id>Mockups.panels` line. No surgery on `PreviewHostAppMode.swift` is ever required.
+   - Mockup files whose `View` struct ends up referenced from shipping code (e.g., Builder reused the empty-state view directly) are **preserved** by cleanup — the cleanup script detects in-use entries automatically and keeps them registered.
+
+4. **Run the build/screenshot/upload pipeline:**
+   ```bash
+   bash $SCRIPTS/generate-design.sh \
+     --issue <CARD> \
+     --epic <EPIC>   \
+     --panels insights-empty,insights-populated
+   ```
+   This script:
+   - Runs `devtools/ios-agent/build.sh`
+   - Acquires the simulator lock (Designer is a simulator agent now)
+   - For each panel, launches the app with `MOCKUP_FIXTURE=<panel-id>` and captures via `xcrun simctl io booted screenshot`
+   - Uploads each PNG to the `screenshots` GitHub Release under name `design-<card>-<panel>.png`
+   - Posts a Designer comment on the card embedding all panels
+   - Sets `DesignURL` to the first panel URL
+   - Queues a design-approval email at `/tmp/helix-epic-emails-pending/design-<card>.json` for the orchestrator to send via Gmail MCP
+
+5. **Vision QA.** After the panel comment is posted, Read each uploaded PNG and verify:
+   - Tab bar (if rendered) shows the **6 real tabs in order**: Today, Journal, Practices, Insights, Knowledge, Settings — and is rendered as iOS 26 **liquid glass** (translucent material, not opaque, not a solid stroke).
+   - No stock human/yoga/avatar imagery.
+   - Ocean gradient (`#081030 → #000514`), `#5856D6` accent, `.ultraThinMaterial` cards, `white 55%` secondary text, Inter font.
+   - Every acceptance-criteria state from the card body is visible in at least one panel.
+   - Real-looking sample data (no placeholder names).
+
+   If any check fails, edit the SwiftUI files and re-run `generate-design.sh`. Don't ship a panel that fails.
+
+6. **Move card to Ready** — run `design-readiness-check.sh`. The user gates the epic via `epic-approved` separately; for non-epic UI cards Designer can move directly to Ready.
+
+### Step 4: Change Requests (regeneration)
+
+When the dispatcher routes Designer to a UI card with a user comment after the last `bot:` Designer comment:
+
+1. Read every user comment newer than the last Designer comment.
+2. **Edit the relevant SwiftUI files** in `helix-app/PreviewHost/Mockups/<epic>-<slug>/` to address the feedback. Real, byte-changing edits — not "rebuild the same code." `generate-design.sh` hashes the mockup files at the end of every successful run; if the next `--regenerate` invocation has byte-identical files, the script exits 2 with `Designer marked --regenerate but the SwiftUI mockup files are byte-identical to the previous version. Refusing to ship an empty regeneration.` This is enforced — you cannot bypass it.
+3. Re-run **with a mandatory resolution note** that quotes the user's specific change request and names the SwiftUI file(s) you edited:
+   ```bash
+   bash $SCRIPTS/generate-design.sh \
+     --issue <CARD> --epic <EPIC> \
+     --panels <same-panel-ids> \
+     --regenerate \
+     --resolution-note "Quoted user comment: '<their words>'. Edited: <Mockups/<epic>-<slug>/<file>.swift>. Change: <one-line description of the visible change>."
+   ```
+   `generate-design.sh` exits 1 if `--resolution-note` is missing on a `--regenerate` run. The note is embedded in both the panel comment and the regenerated email subject so the user sees that their feedback was actually understood and acted on.
+4. The `--regenerate` flag adjusts the comment heading + email subject so the user sees this is an updated set.
+
+### Step 5: Readiness Check
+
 ```bash
 bash $SCRIPTS/design-readiness-check.sh --card $CARD
 ```
-This validates: acceptance criteria, HasUIChanges field, DesignURL (if UI), mockup posted (if UI).
-Fix any failures before moving to Ready.
+
+Validates: acceptance criteria, `HasUIChanges`, `DesignURL`, mockup comment with `releases/download/screenshots/` URL.
 
 ## Scripts used
 
-- `detect-ui-changes.sh` — determine if card needs UI work
-- `design-readiness-check.sh` — validate card readiness before moving to Ready
-- `move-card.sh` — move card to Ready
-- `set-field.sh` — set HasUIChanges, DesignURL fields
+- `detect-ui-changes.sh` — UI-impact decision
+- `generate-design.sh` — build, screenshot, upload, comment, email-queue
+- `design-readiness-check.sh` — validate before moving to Ready
+- `verify-image-urls.sh` — confirm every embedded `<img src>` resolves
+- `move-card.sh`, `set-field.sh`
 
 ## What it hands off
 
-Card in Ready with:
-- HasUIChanges set (Yes or No)
-- DesignURL set (if UI card)
-- Refined acceptance criteria
-- Mockup posted (if UI card)
-- Readiness checklist complete
+- `HasUIChanges` set
+- `DesignURL` set (first panel URL)
+- Materialized panel comment on the card
+- SwiftUI mockup files committed to `helix-app/PreviewHost/Mockups/` AND registered in `PreviewHostScreen.all`
+- Design-approval email queued for the orchestrator's Gmail-MCP drain
 
-Planner picks up from here.
+Planner uses Designer's mockup files as the implementation skeleton for each sub-card.
 
-## Stitch Integration
+## NON-NEGOTIABLE rules
 
-**Do NOT use MCP tools for Stitch.** Use the REST API via curl. The Bash timeout MUST be at least 120000ms since generation takes 30-60 seconds.
+1. **Every UI card MUST end with materialized panel screenshots embedded in a `bot:` comment** that point at `releases/download/screenshots/`. Without that, `design-readiness-check.sh` blocks promotion to Ready.
+2. **Mockup `.swift` files use real Helix tokens only.** No hardcoded colors, no `Color.gray`, no `Color(red:green:blue:)` literals. If a token is missing, add it to `HelixDesignSystem` first — never inline a value.
+3. **One panel per visible acceptance-criteria state.** If the card mentions "empty state" and "populated state", you write two files.
+4. **Sub-cards inherit the epic's panels.** Do not re-render per sub-card unless the sub-card introduces a state not in the epic's panel set.
+5. **Email goes through the queue + Gmail MCP, never `mail` or SMTP.** The orchestrator drains `/tmp/helix-epic-emails-pending/design-*.json` at every dispatch.
+6. **Designer holds the simulator lock while screenshotting.** Do not run Designer in parallel with Tester or Releaser on the same device.
 
-### NON-NEGOTIABLE rules (failure modes from prior sessions)
+## No worktree needed for the design phase
 
-Before you post any mockup to GitHub, enforce all FOUR:
-
-1. **Every UI card MUST have a posted mockup.** If `HasUIChanges=Yes`, the Designer cannot move the card to Ready without at least one `<img src=...>` comment on the issue. Text-only criteria is not a substitute.
-2. **Always download the `=w800` Stitch URL and re-host it on the `screenshots` GitHub Release.** Stitch CDN URLs (`lh3.googleusercontent.com/aida/...`) are time-limited — they return 403 within hours/days, breaking every embedded mockup. The `=w800` suffix serves the full-res ~528KB image (NOT the blurry ~45KB thumbnail), so downloading is fine. Upload via `gh release upload screenshots <file> --repo amonick12/helix --clobber` and use the release-download URL in the comment. This is permanent and verifiable via `verify-image-urls.sh`. The earlier rule that said "never re-upload" was wrong — it was based on a misunderstanding about thumbnail resolution.
-3. **Always append `=w800` to the Stitch screenshot URL.** Without the suffix Google serves a ~75KB low-res thumbnail. With `=w800` you get a ~528KB full-res image. If the URL already has a query string, append `=w800` after the path (it's a Google path suffix, not a query parameter).
-4. **Mandatory self-vision check BEFORE posting.** Download the `=w800` mockup to `/tmp/design-check-<card-id>.png`, then Read the file (vision-enabled) and explicitly verify against this checklist:
-   - Interaction elements match the PRD (e.g. circular checkboxes are actual circles, not progress bars; toggles are iOS-style toggles, not generic switches).
-   - Tab bar (if rendered) shows Helix's real tabs in order: **Journal, Practices, Insights, Knowledge, Settings**. No invented tabs, no missing tabs, consistent across all panels of a multi-state image.
-   - No Stitch stock imagery leaking through — no human avatars, yoga figures, emoji-style illustrations, or generic profile photos unless the PRD explicitly asks for them.
-   - Design system tokens applied: `#081030 → #000514` background gradient, `#5856D6` accent, `.ultraThinMaterial` glass cards with 16pt corners, `white 55%` secondary text, `white 15%` dividers.
-   - Every acceptance-criteria state from the PRD is clearly visible in the rendered `=w800` image (no state cropped off).
-
-   If any item fails, regenerate (adjust the prompt, re-apply design system) and re-check. Never post a mockup that fails this self-check. Log the vision-check result in the bot comment under a `### Vision QA` subsection (one line per checklist item).
-
-### Helix Design System
-
-All mockups go in ONE Stitch project. Never create new projects.
-
-| Field | Value |
-|-------|-------|
-| **Project ID** | `4588124996861941974` |
-| **Design System Asset ID** | `15540506800766488887` |
-
-After generating a screen, ALWAYS apply the Helix Dark design system to normalize colors and fonts. Do NOT let Stitch auto-generate a new design system per screen.
-
-### Helix design tokens (reference in prompts)
-
-Derived from `Color+Theme.swift`. Note: users can customize background and accent in Settings, so these are defaults.
-
-| Token | Value |
-|-------|-------|
-| Background gradient start | `#081030` (helixDarkNavy) |
-| Background gradient end | `#000514` (helixBlack) |
-| Accent / primary | `#5856D6` (indigo, helixAccent) — user-configurable |
-| Secondary text | `white 55%` (helixSecondary) |
-| Glass cards | `.ultraThinMaterial`, 16pt radius, 0.5pt `helixBorder` stroke |
-| Divider/border | `white 15%` |
-| Font | Inter (system default in app) |
-| Corner radius | 16pt (cards), capsule (pills/badges) |
-
-### Step-by-step mockup generation
-
-**1. Generate the screen (use Bash with timeout: 180000):**
-
-```bash
-TOKEN=$(~/google-cloud-sdk/bin/gcloud auth print-access-token 2>/dev/null)
-PROJECT_ID="4588124996861941974"
-
-RESPONSE=$(curl -s -m 120 -X POST \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "x-goog-user-project: helix-491623" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-      "name": "generate_screen_from_text",
-      "arguments": {
-        "projectId": "'"$PROJECT_ID"'",
-        "prompt": "<YOUR PROMPT - always include: dark navy-to-black gradient background (#081030 to #000514), indigo #5856D6 accent, white text, Inter font, frosted glass cards with ultraThinMaterial, 16pt corner radius, subtle 0.5pt border>",
-        "deviceType": "MOBILE",
-        "modelId": "GEMINI_3_1_PRO"
-      }
-    }
-  }' \
-  "https://stitch.googleapis.com/mcp")
-```
-
-**2. Extract screen IDs and screenshot URL:**
-
-```bash
-python3 -c "
-import sys, json
-data = json.loads('''$(echo "$RESPONSE")''')
-inner = json.loads(data['result']['content'][0]['text'])
-comp = inner['outputComponents'][0]
-screen = comp['design']['screens'][0]
-print(f\"SCREEN_ID={screen['name']}\")
-instance_id = comp.get('screenInstanceId', '')
-print(f\"INSTANCE_ID={instance_id}\")
-print(f\"SCREENSHOT_URL={screen['screenshot']['downloadUrl']}\")
-" > /tmp/stitch-result.env
-source /tmp/stitch-result.env
-```
-
-**3. Apply Helix Dark design system:**
-
-```bash
-APPLY_RESPONSE=$(curl -s -m 120 -X POST \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "x-goog-user-project: helix-491623" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc":"2.0","id":1,"method":"tools/call",
-    "params":{"name":"apply_design_system","arguments":{
-      "projectId":"'"$PROJECT_ID"'",
-      "assetId":"15540506800766488887",
-      "selectedScreenInstances":[{"id":"'"$INSTANCE_ID"'","sourceScreen":"'"$SCREEN_ID"'"}]
-    }}
-  }' \
-  "https://stitch.googleapis.com/mcp")
-
-# Extract updated screenshot URL after design system applied
-SCREENSHOT_URL=$(echo "$APPLY_RESPONSE" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-inner = json.loads(data['result']['content'][0]['text'])
-screens = inner['outputComponents'][0]['design']['screens']
-print(screens[0]['screenshot']['downloadUrl'])
-")
-```
-
-**4. Post to GitHub issue as a comment:**
-
-**CRITICAL — two gotchas that repeatedly break mockup quality:**
-
-a) **Append `=w800` to the screenshot URL** to get the full-res 528KB image. Without it, Stitch serves a ~45–75KB thumbnail that renders blurry and washed out.
-
-b) **Never put `<img src="..."` inside a double-quoted shell string with escaped quotes.** The backslashes get preserved literally and the rendered markdown shows `<img src=\"...\"` which GitHub cannot parse. Always write the body to a file and use `--body-file`.
-
-```bash
-HIGHRES_URL="${SCREENSHOT_URL}=w800"
-
-cat > /tmp/design-comment-${CARD_NUMBER}.md <<EOF
-## Design Mockup (Helix Dark)
-
-<img src="${HIGHRES_URL}" width="400">
-
-### Design Notes
-<your notes here>
-EOF
-
-# MANDATORY: verify every image URL in the payload resolves before posting.
-# Broken images must never ship.
-bash "$SCRIPTS/verify-image-urls.sh" /tmp/design-comment-${CARD_NUMBER}.md || {
-  echo "BROKEN IMAGE URL — fix the mockup upload before posting" >&2
-  exit 1
-}
-
-gh issue comment <CARD_NUMBER> --body-file /tmp/design-comment-${CARD_NUMBER}.md
-rm -f /tmp/design-comment-${CARD_NUMBER}.md
-```
-
-After posting, **verify the rendered comment has unescaped quotes**:
-
-```bash
-gh issue view <CARD_NUMBER> --repo amonick12/helix --json comments --jq '.comments[-1].body' | grep -q '<img src="' || { echo "BROKEN: img tag has escaped quotes"; exit 1; }
-```
-
-**5. Set DesignURL field:**
-
-```bash
-COMMENT_URL=$(gh issue view <CARD_NUMBER> --json comments --jq '.comments[-1].url')
-bash $SCRIPTS/set-field.sh <CARD_NUMBER> DesignURL "$COMMENT_URL"
-```
-
-### Stitch prompt tips
-
-- Always describe as an iOS mobile app screen with DARK theme
-- Include exact Helix colors in prompt: dark navy gradient (#081030 → #000514), indigo accent (#5856D6), gray secondary text (#8C8C8C)
-- Glass cards: semi-transparent white background with subtle white border
-- Mention specific SF Symbols by name
-- Describe layout top-to-bottom: header, content area, buttons
-
-**Prerequisites:** `gcloud` CLI installed and authenticated. Stitch API enabled on `helix-491623` GCP project.
-
-## No Worktree Needed
-
-Designer reads cards and posts comments only. No branch or worktree is required.
+Designer's edits go to `helix-app/PreviewHost/Mockups/` and `PreviewHostAppMode.swift` directly on the working tree. No feature branch is created until Planner runs. The mockup files compile via `PBXFileSystemSynchronizedRootGroup` — no `.pbxproj` edits required.

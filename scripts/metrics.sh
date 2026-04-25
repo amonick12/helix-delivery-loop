@@ -121,10 +121,23 @@ fi
 TOTAL_COST="0"
 CARD_COUNT_WITH_COST=0
 
+DEAD_LETTER_COST=0
+SHIPPED_COST=0
 if [[ -d "$USAGE_DIR" ]]; then
   for f in "$USAGE_DIR"/*.json; do
     [[ -f "$f" ]] || continue
     CARD_COST=$(jq '.totals.cost_usd // 0' "$f" 2>/dev/null || echo 0)
+    CARD_NUM=$(basename "$f" .json)
+    # Classify: was this card dead-lettered?
+    DEAD=""
+    if [[ -n "$CARD_NUM" && "$CARD_NUM" != "0" ]]; then
+      DEAD=$(gh issue view "$CARD_NUM" --repo "$REPO" --json labels --jq 'any(.labels[]; .name == "dead-letter")' 2>/dev/null || echo "false")
+    fi
+    if [[ "$DEAD" == "true" ]]; then
+      DEAD_LETTER_COST=$(echo "scale=6; $DEAD_LETTER_COST + $CARD_COST" | bc)
+    else
+      SHIPPED_COST=$(echo "scale=6; $SHIPPED_COST + $CARD_COST" | bc)
+    fi
     TOTAL_COST=$(echo "scale=6; $TOTAL_COST + $CARD_COST" | bc)
     CARD_COUNT_WITH_COST=$((CARD_COUNT_WITH_COST + 1))
   done
@@ -138,6 +151,73 @@ fi
 
 # Format total cost to 2 decimal places
 TOTAL_COST=$(echo "scale=2; $TOTAL_COST / 1" | bc)
+DEAD_LETTER_COST=$(echo "scale=2; $DEAD_LETTER_COST / 1" | bc)
+SHIPPED_COST=$(echo "scale=2; $SHIPPED_COST / 1" | bc)
+DEAD_LETTER_PCT=0
+if [[ "$(echo "$TOTAL_COST > 0" | bc)" -eq 1 ]]; then
+  DEAD_LETTER_PCT=$(echo "scale=1; $DEAD_LETTER_COST * 100 / $TOTAL_COST" | bc)
+fi
+
+# ── Approval-wait timings ───────────────────────────────
+# How long do design-approval and merge-approval emails sit before the user
+# acts? Read sent (.sent_at) timestamps from queue files alongside the
+# corresponding approval label events on the issue. This is the most direct
+# measure of where the loop's wall-clock time goes.
+QUEUE_DIR="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
+DESIGN_WAITS=()
+MERGE_WAITS=()
+calc_wait_hours() {
+  local sent_iso="$1" acted_iso="$2"
+  if [[ -z "$sent_iso" || "$sent_iso" == "null" || -z "$acted_iso" || "$acted_iso" == "null" ]]; then
+    echo ""
+    return
+  fi
+  local s a
+  s=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$sent_iso" +%s 2>/dev/null || echo 0)
+  a=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$acted_iso" +%s 2>/dev/null || echo 0)
+  [[ "$s" -eq 0 || "$a" -eq 0 || "$a" -le "$s" ]] && { echo ""; return; }
+  echo $(( (a - s) / 3600 ))
+}
+if [[ -d "$QUEUE_DIR" ]]; then
+  for f in "$QUEUE_DIR"/design-*.json; do
+    [[ -f "$f" ]] || continue
+    card=$(jq -r '.card // 0' "$f" 2>/dev/null)
+    sent=$(jq -r '.created_at // ""' "$f" 2>/dev/null)
+    [[ -z "$card" || "$card" == "0" ]] && continue
+    label_event=$(gh api "repos/${REPO}/issues/${card}/events" 2>/dev/null \
+      | jq -r '[.[] | select(.event=="labeled" and .label.name=="epic-approved")][0].created_at // ""' 2>/dev/null || echo "")
+    h=$(calc_wait_hours "$sent" "$label_event")
+    [[ -n "$h" ]] && DESIGN_WAITS+=("$h")
+  done
+  for f in "$QUEUE_DIR"/epic-*.json; do
+    [[ -f "$f" ]] || continue
+    pr=$(jq -r '.last_pr // 0' "$f" 2>/dev/null)
+    sent=$(jq -r '.created_at // ""' "$f" 2>/dev/null)
+    [[ -z "$pr" || "$pr" == "0" ]] && continue
+    label_event=$(gh api "repos/${REPO}/issues/${pr}/events" 2>/dev/null \
+      | jq -r '[.[] | select(.event=="labeled" and (.label.name=="user-approved" or .label.name=="epic-final-approved"))][0].created_at // ""' 2>/dev/null || echo "")
+    h=$(calc_wait_hours "$sent" "$label_event")
+    [[ -n "$h" ]] && MERGE_WAITS+=("$h")
+  done
+fi
+
+median_p95() {
+  # echoes "median p95"
+  local values=("$@")
+  if [[ ${#values[@]} -eq 0 ]]; then echo "- -"; return; fi
+  local sorted
+  sorted=$(printf '%s\n' "${values[@]}" | sort -n)
+  local count="${#values[@]}"
+  local median_idx=$(( count / 2 ))
+  local p95_idx=$(( count * 95 / 100 ))
+  [[ "$p95_idx" -ge "$count" ]] && p95_idx=$(( count - 1 ))
+  local m p
+  m=$(echo "$sorted" | sed -n "$((median_idx + 1))p")
+  p=$(echo "$sorted" | sed -n "$((p95_idx + 1))p")
+  echo "$m $p"
+}
+read -r DESIGN_WAIT_MEDIAN DESIGN_WAIT_P95 < <(median_p95 "${DESIGN_WAITS[@]+"${DESIGN_WAITS[@]}"}")
+read -r MERGE_WAIT_MEDIAN MERGE_WAIT_P95 < <(median_p95 "${MERGE_WAITS[@]+"${MERGE_WAITS[@]}"}")
 
 # ── Output ──────────────────────────────────────────────
 if [[ "$OUTPUT_JSON" == "true" ]]; then
@@ -170,6 +250,10 @@ if [[ "$OUTPUT_JSON" == "true" ]]; then
       wip_status: {
         in_progress: ("\($in_progress)/\($wip_prog)"),
         in_review: ("\($in_review)/\($wip_rev)")
+      },
+      approval_wait_hours: {
+        design: { median: "'"$DESIGN_WAIT_MEDIAN"'", p95: "'"$DESIGN_WAIT_P95"'", samples: '"${#DESIGN_WAITS[@]}"' },
+        merge:  { median: "'"$MERGE_WAIT_MEDIAN"'",  p95: "'"$MERGE_WAIT_P95"'",  samples: '"${#MERGE_WAITS[@]}"' }
       }
     }'
 else
@@ -178,7 +262,9 @@ else
   echo "  Throughput:  ${THROUGHPUT} cards/week"
   echo "  Rework rate: ${REWORK_RATE}%"
   echo "  Avg cost:    \$${AVG_COST}/card"
-  echo "  Total cost:  \$${TOTAL_COST}"
+  echo "  Total cost:  \$${TOTAL_COST}  (shipped \$${SHIPPED_COST} + dead-letter \$${DEAD_LETTER_COST}, ${DEAD_LETTER_PCT}% wasted)"
   echo "  Board:       ${COL_BACKLOG} Backlog | ${COL_READY} Ready | ${COL_IN_PROGRESS} In Progress | ${COL_IN_REVIEW} In Review | ${COL_DONE} Done"
   echo "  WIP:         In Progress ${COL_IN_PROGRESS}/${WIP_IN_PROGRESS} | In Review ${COL_IN_REVIEW}/${WIP_IN_REVIEW}"
+  echo "  Design-approval wait:  median ${DESIGN_WAIT_MEDIAN}h, p95 ${DESIGN_WAIT_P95}h (${#DESIGN_WAITS[@]} samples)"
+  echo "  Merge-approval wait:   median ${MERGE_WAIT_MEDIAN}h, p95 ${MERGE_WAIT_P95}h (${#MERGE_WAITS[@]} samples)"
 fi

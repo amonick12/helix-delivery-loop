@@ -118,7 +118,7 @@ cmd_set() {
   ' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
   release_state_lock
 
-  echo "Set cards.$card_id.$field=$value"
+  echo "Set cards.$card_id.$field=$value" >&2
 }
 
 cmd_set_json() {
@@ -137,7 +137,7 @@ cmd_set_json() {
   ' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
   release_state_lock
 
-  echo "Set cards.$card_id.$field (JSON)"
+  echo "Set cards.$card_id.$field (JSON)" >&2
 }
 
 cmd_clear() {
@@ -146,7 +146,7 @@ cmd_clear() {
   local tmp="${STATE_FILE}.tmp"
   jq --arg id "$card_id" 'del(.cards[$id])' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
   release_state_lock
-  echo "Cleared state for card $card_id"
+  echo "Cleared state for card $card_id" >&2
 }
 
 cmd_list() {
@@ -424,6 +424,30 @@ case "${1:-}" in
   set)
     [[ -z "${2:-}" || -z "${3:-}" || -z "${4:-}" ]] && echo "Usage: state.sh set <card-id> <field> <value>" && exit 1
     cmd_set "$2" "$3" "$4"
+    ;;
+  global)
+    # Cross-card / global state via a flat sidecar file. Avoids polluting
+    # per-card state with namespace-collisions like Scout throttling.
+    sub="${2:-}"
+    key="${3:-}"
+    val="${4:-}"
+    GLOBAL_FILE="${STATE_FILE%.json}-global.json"
+    [[ ! -f "$GLOBAL_FILE" ]] && echo '{}' > "$GLOBAL_FILE"
+    case "$sub" in
+      get)
+        [[ -z "$key" ]] && echo "Usage: state.sh global get <key>" >&2 && exit 1
+        jq -r --arg k "$key" '.[$k] // ""' "$GLOBAL_FILE"
+        ;;
+      set)
+        [[ -z "$key" || -z "$val" ]] && echo "Usage: state.sh global set <key> <value>" >&2 && exit 1
+        tmp=$(mktemp)
+        jq --arg k "$key" --arg v "$val" '.[$k] = $v' "$GLOBAL_FILE" > "$tmp" && mv "$tmp" "$GLOBAL_FILE"
+        echo "Set global.$key=$val" >&2
+        ;;
+      *)
+        echo "Usage: state.sh global {get|set} <key> [value]" >&2; exit 1
+        ;;
+    esac
     ;;
   set-json)
     [[ -z "${2:-}" || -z "${3:-}" || -z "${4:-}" ]] && echo "Usage: state.sh set-json <card-id> <field> <json>" && exit 1

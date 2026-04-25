@@ -55,17 +55,16 @@ assert "$RESULT" "releaser" "Rule 2: In Review + user-approved → releaser"
 
 # ── Rule 3: In Progress + draft PR with rework label → Builder ──
 # Reviewer/Tester converts PR to draft and adds "rework" label when routing back.
-# In test mode, gh pr view fails so fallback defaults apply (draft:false, rework:false).
-# This means rule 3 falls through without a real PR. We test the state setup
-# and verify the dispatcher doesn't crash.
+# Use a high card_id that won't collide with a real PR via `gh pr list --head`
+# (resolve_pr_for_card now falls back to gh queries when the PR URL field is empty).
 make_board '{
   "cards": [{
-    "item_id":"I1","issue_number":42,"title":"Fix nav","url":"https://github.com/amonick12/helix/issues/42",
+    "item_id":"I1","issue_number":987654,"title":"Synthetic","url":"https://github.com/amonick12/helix/issues/987654",
     "state":"OPEN","labels":[],"recent_comments":[],
     "fields":{"Status":"In progress","Priority":"P1","OwnerAgent":"Builder"}
   }]
 }'
-echo '{"cards":{"42":{"last_agent":"reviewer"}}}' > "$STATE_FILE"
+echo '{"cards":{"987654":{"last_agent":"reviewer"}}}' > "$STATE_FILE"
 # Without a real PR, rules 3/4a/4b/5 fall through; card has no PR URL so
 # it falls through to rule 6 (no Ready cards) → rule 7 (no Backlog) → rule 8 (scout)
 RESULT=$(dispatch_agent)
@@ -175,6 +174,65 @@ make_board '{
 echo '{"cards":{}}' > "$STATE_FILE"
 RESULT=$(dispatch_card)
 assert "$RESULT" "43" "Blocked: skip #42, pick #43"
+
+# ── Rule 7d: UI card with redesign-needed label → Designer ──
+make_board '{
+  "cards": [
+    {"item_id":"I1","issue_number":182,"title":"Insights v2 epic","url":"u","state":"OPEN","labels":["epic","redesign-needed"],"recent_comments":[],"fields":{"Status":"Backlog","Priority":"P1","HasUIChanges":"Yes"}}
+  ]
+}'
+echo '{"cards":{}}' > "$STATE_FILE"
+RESULT=$(dispatch_agent)
+assert "$RESULT" "designer" "Rule 7d: redesign-needed label → designer"
+RESULT=$(dispatch_card)
+assert "$RESULT" "182" "Rule 7d: redesign-needed label routes to the labeled card"
+
+# ── Rule 7c: user comment newer than last bot Designer comment → Designer ──
+make_board '{
+  "cards": [
+    {"item_id":"I1","issue_number":183,"title":"Atlas epic","url":"u","state":"OPEN","labels":["epic"],"recent_comments":[
+      {"author":"github-actions[bot]","body":"bot: Design Mockups (SwiftUI) — see panels","created_at":"2026-04-20T10:00:00Z"},
+      {"author":"amonick12","body":"please tighten the spacing on cards","created_at":"2026-04-21T09:00:00Z"}
+    ],"fields":{"Status":"Backlog","Priority":"P1","HasUIChanges":"Yes","DesignURL":"https://github.com/x/releases/download/screenshots/design-183-empty.png"}}
+  ]
+}'
+echo '{"cards":{}}' > "$STATE_FILE"
+RESULT=$(dispatch_agent)
+assert "$RESULT" "designer" "Rule 7c: user comment after Designer post → designer"
+
+# ── Rule 7b clean: epic-approved comment with mockups posted → Planner ──
+make_board '{
+  "cards": [
+    {"item_id":"I1","issue_number":184,"title":"Approved epic","url":"u","state":"OPEN","labels":["epic"],"recent_comments":[
+      {"author":"amonick12","body":"approve","created_at":"2026-04-21T12:00:00Z"}
+    ],"fields":{"Status":"Backlog","Priority":"P1","HasUIChanges":"Yes","DesignURL":"https://github.com/x/releases/download/screenshots/design-184-empty.png"}}
+  ]
+}'
+echo '{"cards":{}}' > "$STATE_FILE"
+RESULT=$(dispatch_agent)
+assert "$RESULT" "planner" "Rule 7b clean: approve + DesignURL → planner"
+
+# ── Rule 7b premature: epic-approved before mockups → Designer (guard) ──
+make_board '{
+  "cards": [
+    {"item_id":"I1","issue_number":185,"title":"Premature epic","url":"u","state":"OPEN","labels":["epic"],"recent_comments":[
+      {"author":"amonick12","body":"approve","created_at":"2026-04-21T12:00:00Z"}
+    ],"fields":{"Status":"Backlog","Priority":"P1","HasUIChanges":"Yes"}}
+  ]
+}'
+echo '{"cards":{}}' > "$STATE_FILE"
+RESULT=$(dispatch_agent)
+assert "$RESULT" "designer" "Rule 7b guard: HasUIChanges=Yes + empty DesignURL + approve → designer (not planner)"
+
+# ── Rule 2: epic-final-approved label routes to Releaser ──
+make_board '{
+  "cards": [
+    {"item_id":"I1","issue_number":186,"title":"Final approved","url":"u","state":"OPEN","labels":["epic-final-approved"],"recent_comments":[],"fields":{"Status":"In review","Priority":"P1","PR URL":"https://github.com/x/pull/501"}}
+  ]
+}'
+echo '{"cards":{}}' > "$STATE_FILE"
+RESULT=$(dispatch_agent)
+assert "$RESULT" "releaser" "Rule 2: epic-final-approved label → releaser"
 
 echo "$PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

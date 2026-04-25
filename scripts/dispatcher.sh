@@ -84,6 +84,18 @@ sort_by_priority() {
   )'
 }
 
+# Filter out only dead-lettered and label-blocked cards (NOT unapproved epics).
+# Used by Rules 7c/7d which specifically need to fire on unapproved epics
+# during the Designer iteration loop.
+filter_dead_letter_only() {
+  local cards="$1"
+  echo "$cards" | jq '[.[] | select(
+    (any(.labels[]; . == "dead-letter") | not) and
+    (any(.labels[]; . == "blocked") | not) and
+    ((.fields.BlockedReason // "") == "")
+  )]'
+}
+
 # Filter out blocked and dead-lettered cards, adding them to SKIPPED
 filter_blocked() {
   local cards="$1"
@@ -310,7 +322,10 @@ rule_1_comment_response() {
   return 1
 }
 
-# ── Rule 2: In Review + user-approved → Releaser ────────
+# ── Rule 2: In Review + user-approved OR epic-final-approved → Releaser ──
+# Both labels are accepted: `user-approved` is the standard merge approval,
+# `epic-final-approved` is added by the user after testing the TestFlight build
+# at the end of an epic (per notify-epic-testflight.sh).
 rule_2_approved() {
   local in_review
   in_review=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "In review")]' | sort_by_priority)
@@ -323,9 +338,9 @@ rule_2_approved() {
 
     # Check issue labels first
     local has_label
-    has_label=$(echo "$card_json" | jq 'any(.labels[]; . == "user-approved")')
+    has_label=$(echo "$card_json" | jq 'any(.labels[]; . == "user-approved" or . == "epic-final-approved")')
 
-    # Also check PR labels (user-approved is typically added to the PR, not the issue)
+    # Also check PR labels (approvals are typically added to the PR, not the issue)
     if [[ "$has_label" != "true" ]]; then
       local pr_url
       pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
@@ -333,13 +348,13 @@ rule_2_approved() {
         local pr_num
         pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$')
         if [[ -n "$pr_num" ]]; then
-          has_label=$(gh pr view "$pr_num" --repo "$REPO" --json labels --jq 'any(.labels[]; .name == "user-approved")' 2>/dev/null || echo "false")
+          has_label=$(gh pr view "$pr_num" --repo "$REPO" --json labels --jq 'any(.labels[]; .name == "user-approved" or .name == "epic-final-approved")' 2>/dev/null || echo "false")
         fi
       fi
     fi
 
     if [[ "$has_label" == "true" ]]; then
-      decide "releaser" "$card_id" "Card #$card_id In Review with user-approved label" "$(model_for releaser)"
+      decide "releaser" "$card_id" "Card #$card_id In Review with user-approved or epic-final-approved label" "$(model_for releaser)"
       return 0
     fi
   done < <(echo "$in_review" | jq -c '.[]')
@@ -551,7 +566,11 @@ rule_6_ready() {
 rule_7_needs_design() {
   local backlog
   backlog=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "Backlog")]' | sort_by_priority)
-  backlog=$(filter_blocked "$backlog")
+  # Use the lighter filter so Designer can fire on unapproved epics — that's
+  # exactly when we need composite mockups generated for user review. The
+  # default filter_blocked excludes unapproved epics, which would lock out
+  # the first design pass.
+  backlog=$(filter_dead_letter_only "$backlog")
 
   while IFS= read -r card_json; do
     [[ -z "$card_json" || "$card_json" == "null" ]] && continue
@@ -562,6 +581,65 @@ rule_7_needs_design() {
       card_id=$(echo "$card_json" | jq -r '.issue_number')
       local reason="Card #$card_id in Backlog, needs design evaluation"
       decide "designer" "$card_id" "$reason" "$(model_for designer)"
+      return 0
+    fi
+  done < <(echo "$backlog" | jq -c '.[]')
+
+  return 1
+}
+
+# ── Rule 7c: UI card in Backlog with user comment after last bot Designer comment → Designer (regenerate) ──
+# ── Rule 7d: UI card with `redesign-needed` label → Designer (vision QA failed) ──
+# Stage A's vision-QA failure path adds this label. Without this rule, the
+# label sits forever and the queue never drains.
+rule_7d_redesign_needed() {
+  local backlog
+  backlog=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "Backlog")]' | sort_by_priority)
+  backlog=$(filter_dead_letter_only "$backlog")
+
+  while IFS= read -r card_json; do
+    [[ -z "$card_json" || "$card_json" == "null" ]] && continue
+    local has_label card_id
+    has_label=$(echo "$card_json" | jq 'any(.labels[]; . == "redesign-needed")' 2>/dev/null || echo "false")
+    [[ "$has_label" != "true" ]] && continue
+    card_id=$(echo "$card_json" | jq -r '.issue_number')
+    decide "designer" "$card_id" "Card #$card_id: redesign-needed label set (Stage A vision QA failed) — regenerate" "$(model_for designer)"
+    return 0
+  done < <(echo "$backlog" | jq -c '.[]')
+
+  return 1
+}
+
+rule_7c_design_changes_requested() {
+  local backlog
+  backlog=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "Backlog")]' | sort_by_priority)
+  backlog=$(filter_dead_letter_only "$backlog")
+
+  while IFS= read -r card_json; do
+    [[ -z "$card_json" || "$card_json" == "null" ]] && continue
+    local has_ui card_id
+    has_ui=$(echo "$card_json" | jq -r '.fields.HasUIChanges // ""')
+    [[ "$has_ui" != "Yes" ]] && continue
+    card_id=$(echo "$card_json" | jq -r '.issue_number')
+
+    # Latest user comment newer than latest bot Designer comment?
+    local newer_user_comment
+    newer_user_comment=$(echo "$card_json" | jq -r '
+      def latest_designer:
+        [.recent_comments[]
+         | select(.author == "github-actions[bot]" or (.body | startswith("bot:")))
+         | select(.body | test("Design Mockups|Design Required"))
+         | .created_at] | sort | last // "1970-01-01T00:00:00Z";
+      def latest_user:
+        [.recent_comments[]
+         | select(.author != "github-actions[bot]")
+         | select((.body // "") | startswith("bot:") | not)
+         | .created_at] | sort | last // "1970-01-01T00:00:00Z";
+      if latest_user > latest_designer then "true" else "false" end
+    ' 2>/dev/null || echo "false")
+
+    if [[ "$newer_user_comment" == "true" ]]; then
+      decide "designer" "$card_id" "Card #$card_id: user comment requesting changes since last Designer post — regenerate" "$(model_for designer)"
       return 0
     fi
   done < <(echo "$backlog" | jq -c '.[]')
@@ -587,17 +665,67 @@ rule_7b_epic_approval() {
     has_approved_label=$(echo "$card_json" | jq 'any(.labels[]; . == "epic-approved")')
     [[ "$has_approved_label" == "true" ]] && continue
 
-    # Check recent comments for user approval
-    local has_approval
-    has_approval=$(echo "$card_json" | jq '
-      [.recent_comments[] | select(
-        .author != "github-actions[bot]" and
-        (.body | test("(?i)^\\s*(approved|approve|lgtm|go ahead|ship it|make the child cards|start working)"))
-      )] | length > 0
+    # Approval-vs-change-request race guard: if the card has the
+    # `redesign-needed` label, hold the approval. The label is set by the
+    # loop whenever a bot: change-request comment is posted (or by Stage A
+    # vision-QA failure) and only Designer's successful regen removes it.
+    # An "approved" comment that arrived during the race window between the
+    # change-request and the user's browser refresh shouldn't ship a known-
+    # broken design.
+    local has_redesign_label
+    has_redesign_label=$(echo "$card_json" | jq 'any(.labels[]; . == "redesign-needed")')
+    [[ "$has_redesign_label" == "true" ]] && continue
+
+    # Check recent comments for user approval, but ALSO require that the
+    # latest user approval is newer than the latest bot: change-request.
+    # Prevents the case where a bot posts changes-needed at T and the user's
+    # browser still shows the pre-comment view at T+small, so they hit
+    # approve on a state that's already known to be wrong.
+    # NOTE: read-board.sh emits comment timestamps as `.created`, not `.created_at`.
+    local approval_newer_than_changes
+    approval_newer_than_changes=$(echo "$card_json" | jq '
+      def latest_approval:
+        [.recent_comments[]
+         | select(.author != "github-actions[bot]")
+         | select((.body // "") | startswith("bot:") | not)
+         | select(.body | test("(?i)^\\s*(approved|approve|lgtm|go ahead|ship it|make the child cards|start working)"))
+         | (.created // .created_at // "")] | sort | last // "1970-01-01T00:00:00Z";
+      def latest_change_request:
+        [.recent_comments[]
+         | select((.body // "") | test("(?i)changes? requested|please regenerate|do NOT (approve|merge)|hold (the|this) approval|design (changes|fixes) requested"))
+         | (.created // .created_at // "")] | sort | last // "1970-01-01T00:00:00Z";
+      latest_approval > latest_change_request
     ' 2>/dev/null || echo "false")
+    if [[ "$approval_newer_than_changes" != "true" ]]; then
+      continue
+    fi
+
+    local has_approval="true"
 
     if [[ "$has_approval" == "true" ]]; then
-      # Add epic-approved label and move to Ready
+      # Premature-approval guard: if the epic claims UI changes but Designer
+      # hasn't posted mockups yet, the user couldn't have actually reviewed
+      # designs. Hold the approval until mockups exist; otherwise we'd ship
+      # an undesigned epic to Planner.
+      local has_ui design_url
+      has_ui=$(echo "$card_json" | jq -r '.fields.HasUIChanges // ""')
+      design_url=$(echo "$card_json" | jq -r '.fields.DesignURL // ""')
+      if [[ "$has_ui" == "Yes" && ( -z "$design_url" || "$design_url" == "null" ) ]]; then
+        if [[ "$DRY_RUN" != "true" ]]; then
+          # Post a one-time guard comment (idempotent: only post if not already there)
+          local already
+          already=$(gh issue view "$card_id" --repo "$REPO" --json comments \
+            --jq '[.comments[] | select(.body | startswith("bot: Premature epic-approved"))] | length' 2>/dev/null || echo 0)
+          if [[ "$already" -eq 0 ]]; then
+            gh issue comment "$card_id" --repo "$REPO" --body "bot: Premature epic-approved detected — Designer has not yet posted mockups (DesignURL is empty). Holding the approval until designs are rendered. Designer is being dispatched now; you'll get a fresh design-approval email when the mockups are ready." 2>/dev/null || true
+          fi
+        fi
+        # Route to Designer instead of Planner
+        decide "designer" "$card_id" "Card #$card_id: epic-approved before mockups; routing to Designer first" "$(model_for designer)"
+        return 0
+      fi
+
+      # All-clear: add epic-approved label and move to Ready
       if [[ "$DRY_RUN" != "true" ]]; then
         gh issue edit "$card_id" --repo "$REPO" --add-label "epic-approved" 2>/dev/null || true
         bash "$SCRIPTS_DIR/move-card.sh" --issue "$card_id" --to "Ready" 2>/dev/null || true
@@ -695,7 +823,9 @@ dispatch() {
   rule_5b_planner_handoff && return 0
   rule_6_ready && return 0
   rule_7_needs_design && return 0
+  rule_7d_redesign_needed && return 0
   rule_7b_epic_approval && return 0
+  rule_7c_design_changes_requested && return 0
   rule_8_idle && return 0
 }
 
@@ -750,17 +880,17 @@ dispatch_multi() {
     local card_id
     card_id=$(echo "$card_json" | jq -r '.issue_number')
     local has_label="false"
-    has_label=$(echo "$card_json" | jq 'any(.labels[]; . == "user-approved")')
+    has_label=$(echo "$card_json" | jq 'any(.labels[]; . == "user-approved" or . == "epic-final-approved")')
     if [[ "$has_label" != "true" ]]; then
       local pr_url
       pr_url=$(echo "$card_json" | jq -r '.fields["PR URL"] // ""')
       if [[ -n "$pr_url" && "$pr_url" != "null" ]]; then
         local pr_num
         pr_num=$(echo "$pr_url" | grep -oE '[0-9]+$')
-        [[ -n "$pr_num" ]] && has_label=$(gh pr view "$pr_num" --repo "$REPO" --json labels --jq 'any(.labels[]; .name == "user-approved")' 2>/dev/null || echo "false")
+        [[ -n "$pr_num" ]] && has_label=$(gh pr view "$pr_num" --repo "$REPO" --json labels --jq 'any(.labels[]; .name == "user-approved" or .name == "epic-final-approved")' 2>/dev/null || echo "false")
       fi
     fi
-    [[ "$has_label" == "true" ]] && add_decision "releaser" "$card_id" "Card #$card_id In Review with user-approved label" "$(model_for releaser)" || true
+    [[ "$has_label" == "true" ]] && add_decision "releaser" "$card_id" "Card #$card_id In Review with user-approved or epic-final-approved label" "$(model_for releaser)" || true
   done < <(echo "$in_review" | jq -c '.[]')
 
   # Rules 3-5: Check In Progress cards by PR state
@@ -858,18 +988,48 @@ dispatch_multi() {
     done < <(echo "$ready" | jq -c '.[]')
   fi
 
-  # Rule 7: Backlog → Designer
+  # Rule 7: Backlog → Designer (and 7c/7d for UI epics with iteration signals)
+  # Use the dead-letter-only filter so 7c/7d can fire on unapproved epics.
   local backlog
   backlog=$(echo "$BOARD" | jq '[.cards[] | select(.fields.Status == "Backlog")]' | sort_by_priority)
-  backlog=$(filter_blocked "$backlog")
+  backlog=$(filter_dead_letter_only "$backlog")
   while IFS= read -r card_json; do
     [[ -z "$card_json" || "$card_json" == "null" ]] && continue
     local has_ui
     has_ui=$(echo "$card_json" | jq -r '.fields.HasUIChanges // ""')
+    # Rule 7d: redesign-needed label trumps everything (Stage A vision QA failed)
+    local has_redesign_label
+    has_redesign_label=$(echo "$card_json" | jq 'any(.labels[]; . == "redesign-needed")' 2>/dev/null || echo "false")
+    if [[ "$has_redesign_label" == "true" ]]; then
+      local card_id
+      card_id=$(echo "$card_json" | jq -r '.issue_number')
+      add_decision "designer" "$card_id" "Card #$card_id: redesign-needed (Stage A vision QA failed)" "$(model_for designer)" || true
+      continue
+    fi
     if [[ -z "$has_ui" || "$has_ui" == "null" ]]; then
       local card_id
       card_id=$(echo "$card_json" | jq -r '.issue_number')
       add_decision "designer" "$card_id" "Card #$card_id in Backlog, needs design evaluation" "$(model_for designer)" || true
+    elif [[ "$has_ui" == "Yes" ]]; then
+      # Rule 7c: UI card with user comment newer than last Designer post → regenerate
+      local card_id newer
+      card_id=$(echo "$card_json" | jq -r '.issue_number')
+      newer=$(echo "$card_json" | jq -r '
+        def latest_designer:
+          [.recent_comments[]
+           | select(.author == "github-actions[bot]" or (.body | startswith("bot:")))
+           | select(.body | test("Design Mockups|Design Required"))
+           | .created_at] | sort | last // "1970-01-01T00:00:00Z";
+        def latest_user:
+          [.recent_comments[]
+           | select(.author != "github-actions[bot]")
+           | select((.body // "") | startswith("bot:") | not)
+           | .created_at] | sort | last // "1970-01-01T00:00:00Z";
+        if latest_user > latest_designer then "true" else "false" end
+      ' 2>/dev/null || echo "false")
+      if [[ "$newer" == "true" ]]; then
+        add_decision "designer" "$card_id" "Card #$card_id: user comment requesting changes since last Designer post — regenerate" "$(model_for designer)" || true
+      fi
     fi
   done < <(echo "$backlog" | jq -c '.[]')
 

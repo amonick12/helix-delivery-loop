@@ -39,7 +39,7 @@ Env:
   COVERAGE_DROP_TOLERANCE  Max allowed drop below baseline (default: 0 — coverage must never drop)
 HELP
 
-BASELINES_DIR="${BASELINES_DIR:-$REPO_ROOT/.claude/baselines}"
+BASELINES_DIR="${BASELINES_DIR:-$HELIX_REPO_ROOT/.claude/baselines}"
 BASELINES_FILE="${BASELINES_FILE:-$BASELINES_DIR/coverage.json}"
 COVERAGE_DROP_TOLERANCE="${COVERAGE_DROP_TOLERANCE:-0}"
 

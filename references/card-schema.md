@@ -24,7 +24,7 @@ Every card accumulates fields as it moves through the pipeline. Not all fields a
 |-------|--------|-------------|
 | **Branch** | Planner | `feature/<card-id>-<slug>` |
 | **PR URL** | Releaser | URL to the open pull request |
-| **DesignURL** | Designer | Link to Stitch mockup or uploaded design image |
+| **DesignURL** | Designer | Link to a SwiftUI mockup screenshot (rendered from `helix-app/PreviewHost/Mockups/`, uploaded to the `screenshots` GitHub Release) |
 | **Evidence URL** | Reviewer/Tester/Releaser | Screenshots, recordings, validation reports |
 | **Validation Report URL** | Reviewer | Link to code-review comment on the PR |
 | **Risk** | Scout/Builder | Free-text description of implementation risk |

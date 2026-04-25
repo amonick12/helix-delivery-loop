@@ -94,7 +94,12 @@ The Releaser must not close a PR for any other reason (e.g. "looks like a duplic
    c. Clear state: `bash state.sh clear <card-id>`
    d. Delete artifacts: `rm -rf /tmp/helix-artifacts/<card-id>`
    e. Delete DerivedData: `rm -rf /tmp/helix-wt/feature/<card-id>-*/DerivedData`
-   f. If any cleanup step fails, log warning and continue — never block Done transition
+   f. **If this PR was the LAST sub-card of an epic** (use `check-epic-completion.sh --epic <epic>` to confirm), run mockup cleanup:
+      ```bash
+      bash $SCRIPTS/cleanup-epic-mockups.sh --epic <epic>
+      ```
+      This removes `helix-app/PreviewHost/Mockups/<epic>-*/` and the registry block in `PreviewHostAppMode.swift`, **but preserves any mockup file whose `View` struct is referenced from shipping code** (i.e., Builder reused it directly in the feature). Verifies the build passes after cleanup; on build failure, restores the files from git and aborts. Commits the cleanup to autodev.
+   g. If any cleanup step fails, log warning and continue — never block Done transition
 7. Close issue: `gh issue close <card-id> --comment "Merged via PR #<N>."`
 8. Move card to Done and set MergeStatus:
    ```bash
@@ -109,6 +114,7 @@ The Releaser must not close a PR for any other reason (e.g. "looks like a duplic
 - `read-board.sh` — read board state for cron polling
 - `rebase-open-prs.sh` — rebase all open PRs after merge
 - `run-gates.sh` — verify autodev health post-merge (handles pre-existing test crashes)
+- `cleanup-epic-mockups.sh` — remove the epic's mockup directory + registry block on epic-final merge (preserves files whose View struct is still referenced)
 - `learnings.sh` — check for repeated violations to suggest CLAUDE.md rules
 - `create-card.sh` — create hotfix card on rollback
 

@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/config.sh"
 
-STATE_FILE="${STATE_FILE:-$REPO_ROOT/.claude/delivery-loop-state.json}"
+STATE_FILE="${STATE_FILE:-$HELIX_REPO_ROOT/.claude/delivery-loop-state.json}"
 
 # Get all open PRs
 OPEN_PRS=$(gh pr list --repo "$REPO" --state open --json number,headRefName,body --jq '.[].number' 2>/dev/null || echo "")

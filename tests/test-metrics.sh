@@ -183,7 +183,7 @@ assert "$DONE" "5" "Done count"
 
 # ── Test 2: WIP status shows current/limit ─────────────
 WIP_PROG=$(echo "$JSON_OUT" | jq -r '.wip_status.in_progress')
-assert "$WIP_PROG" "1/6" "WIP In Progress current/limit"
+assert "$WIP_PROG" "1/4" "WIP In Progress current/limit"
 
 WIP_REV=$(echo "$JSON_OUT" | jq -r '.wip_status.in_review')
 assert "$WIP_REV" "2/5" "WIP In Review current/limit"
@@ -191,7 +191,7 @@ assert "$WIP_REV" "2/5" "WIP In Review current/limit"
 # ── Test 3: JSON output structure ───────────────────────
 # Verify all expected top-level keys exist
 KEYS=$(echo "$JSON_OUT" | jq -r 'keys[]' | sort | tr '\n' ',')
-assert "$KEYS" "avg_cost_per_card_usd,by_column,cycle_time_avg_hours,rework_rate_pct,throughput_per_week,total_cost_30d_usd,wip_status," "JSON has all expected keys"
+assert "$KEYS" "approval_wait_hours,avg_cost_per_card_usd,by_column,cycle_time_avg_hours,rework_rate_pct,throughput_per_week,total_cost_30d_usd,wip_status," "JSON has all expected keys (incl. approval_wait_hours)"
 
 # ── Test 4: Human-readable output ───────────────────────
 HUMAN_OUT=$("$METRICS" 2>/dev/null)

@@ -99,3 +99,37 @@ If you need to update screenshots after Visual QA feedback, use:
 bash $SCRIPTS/update-pr-evidence.sh --pr $PR --section screenshots --content "..."
 bash $SCRIPTS/update-pr-evidence.sh --pr $PR --section visual-qa --content "..."
 ```
+
+## Image URL Verification (MANDATORY — before any post)
+
+Broken images must never ship. Every PR body update or comment that references
+an image or recording URL must pass `verify-image-urls.sh` **before** you
+hand the file to `gh pr edit --body-file` / `gh pr comment --body-file`.
+
+```bash
+# Write the payload to a file first.
+cat > /tmp/pr-$PR-visual-qa.md <<'BODY'
+## Visual QA — PASS
+| Populated | Empty |
+|---|---|
+| <img src="https://github.com/amonick12/helix/releases/download/screenshots/cardN-populated.png" width="300"> | <img src="https://github.com/amonick12/helix/releases/download/screenshots/cardN-empty.png" width="300"> |
+BODY
+
+# Verify every image/media URL resolves. Non-zero exit = broken URL.
+bash "$SCRIPTS/verify-image-urls.sh" /tmp/pr-$PR-visual-qa.md || {
+  echo "Fix broken image URLs before posting (see output above)" >&2
+  exit 1
+}
+
+gh pr edit $PR --repo amonick12/helix --body-file /tmp/pr-$PR-visual-qa.md
+```
+
+The verifier flags:
+- Assets missing from the `screenshots` release (filename not in the asset manifest)
+- Malformed URLs (duplicate `?raw=true`, duplicate query keys)
+- Non-GitHub URLs that return 4xx/5xx
+
+If the verifier fails, re-upload the missing asset via
+`gh release upload screenshots <file> --repo amonick12/helix --clobber` and
+re-run the verifier before posting. Never post hoping GitHub will resolve
+the URL later.

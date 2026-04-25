@@ -11,7 +11,13 @@ PROJECT_ID="PVT_kwHOADV6sM4BR2BF"
 BASE_BRANCH="autodev"
 
 # ── Paths ────────────────────────────────────────────────
-REPO_ROOT="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null || echo "/Users/aaronmonick/Downloads/helix")"
+# HELIX_REPO_ROOT is the canonical "iOS app repo root" for any script that
+# needs to read or modify shipping code, mockups, .claude state, the
+# screenshots release, etc. ALWAYS use this for those purposes.
+HELIX_REPO_ROOT="${HELIX_REPO_ROOT:-/Users/aaronmonick/Downloads/helix}"
+# REPO_ROOT is kept as an alias so older scripts that haven't migrated yet
+# continue to work. New code should always use HELIX_REPO_ROOT explicitly.
+REPO_ROOT="$HELIX_REPO_ROOT"
 # Plugin dir resolves relative to this script (the cache), not the repo.
 # This makes the cache the single source of truth for all plugin files.
 PLUGIN_DIR="$(cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.." && pwd)"
@@ -59,11 +65,10 @@ WIP_IN_REVIEW=5
 
 # ── Model Assignment ─────────────────────────────────────
 MODEL_SCOUT="sonnet"
-MODEL_DESIGNER="sonnet"
+MODEL_DESIGNER="opus"
 MODEL_PLANNER="opus"
 MODEL_BUILDER="opus"
-MODEL_BUILDER_REWORK="sonnet"
-# MODEL_VERIFIER removed — Verifier split into Reviewer + Tester
+MODEL_BUILDER_REWORK="opus"
 MODEL_MAINTAINER="opus"
 MODEL_REVIEWER="haiku"
 MODEL_TESTER="sonnet"
@@ -81,13 +86,13 @@ COST_OUTPUT_HAIKU=4.00
 # Simulator agents need the device for screenshots, UITests, or TestFlight.
 # Non-simulator agents (Designer, Planner, Builder) can run in parallel.
 # Builder only uses xcodebuild build + unit tests on macOS destination.
-SIMULATOR_AGENTS="scout tester releaser"
-NON_SIMULATOR_AGENTS="designer planner builder reviewer maintainer"
+SIMULATOR_AGENTS="scout designer tester releaser"
+NON_SIMULATOR_AGENTS="planner builder reviewer maintainer"
 
 needs_simulator() {
   local agent="$1"
   case "$agent" in
-    scout|tester|releaser) return 0 ;;
+    scout|designer|tester|releaser) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -100,20 +105,16 @@ fi
 SIMULATOR_NAME="iPhone 17 Pro (Codex)"
 SIMULATOR_LOCK="/tmp/helix-simulator.lock"
 
-# ── Stitch ───────────────────────────────────────────────
-STITCH_PROJECT_ID="4588124996861941974"
-STITCH_DESIGN_SYSTEM_ID="15540506800766488887"
-GCP_PROJECT="helix-491623"
-STITCH_MCP_URL="https://stitch.googleapis.com/mcp"
-
-# ── Canonical Stitch Screens (Task 14) ──────────────────
-# STITCH_SCREEN_JOURNAL_TAB=""
-# STITCH_SCREEN_JOURNAL_DETAIL=""
-# STITCH_SCREEN_PRACTICES_TAB=""
-# STITCH_SCREEN_INSIGHTS_TAB=""
-# STITCH_SCREEN_KNOWLEDGE_TAB=""
-# STITCH_SCREEN_SETTINGS_TAB=""
-# STITCH_SCREEN_COMPOSE=""
+# ── Mockups (SwiftUI) ────────────────────────────────────
+# Designer agent writes SwiftUI mockup views into MOCKUP_DIR using real Helix
+# design tokens, registers them in MOCKUP_REGISTRY_FILE, builds, boots the
+# sim with MOCKUP_FIXTURE_ENV set to a panel id, screenshots, uploads.
+MOCKUP_DIR="$HELIX_REPO_ROOT/helix-app/PreviewHost/Mockups"
+MOCKUP_REGISTRY_FILE="$HELIX_REPO_ROOT/helix-app/PreviewHost/Mockups/EpicMockupRegistry.swift"
+MOCKUP_FIXTURE_ENV="MOCKUP_FIXTURE"
+MOCKUP_BUILD_SCRIPT="$HELIX_REPO_ROOT/devtools/ios-agent/build.sh"
+MOCKUP_LAUNCH_SCRIPT="$HELIX_REPO_ROOT/devtools/ios-agent/launch-app.sh"
+MOCKUP_SCREENSHOT_SCRIPT="$HELIX_REPO_ROOT/devtools/ios-agent/screenshot.sh"
 
 # ── Agent Comment Filter ─────────────────────────────────
 # Regex pattern to identify agent-posted PR comments (not user comments)
@@ -236,3 +237,43 @@ show_help_if_requested() {
 log_info()  { echo "[INFO]  $(date +%H:%M:%S) $*" >&2; }
 log_warn()  { echo "[WARN]  $(date +%H:%M:%S) $*" >&2; }
 log_error() { echo "[ERROR] $(date +%H:%M:%S) $*" >&2; }
+
+# ── gh API retry wrapper ────────────────────────────────
+# Wraps any gh CLI invocation with exponential backoff on retryable errors:
+# rate limits (HTTP 429, 403 with 'rate limit'), transient network failures
+# (connection refused, EOF, gateway). Non-retryable errors return immediately
+# with the original exit code. Used by scripts that hit gh in tight loops.
+gh_retry() {
+  local max_attempts=3
+  local backoff=2
+  local attempt=1
+  local stderr_file
+  stderr_file=$(mktemp)
+  local rc=0
+  while (( attempt <= max_attempts )); do
+    "$@" 2>"$stderr_file"
+    rc=$?
+    if [[ "$rc" -eq 0 ]]; then
+      cat "$stderr_file" >&2
+      rm -f "$stderr_file"
+      return 0
+    fi
+    local err
+    err=$(cat "$stderr_file")
+    # Decide whether to retry. Pattern list covers GitHub's flaky modes.
+    if echo "$err" | grep -qiE 'rate limit|429|403.*rate|connection refused|gateway timeout|EOF|temporary failure'; then
+      log_warn "gh transient error (attempt $attempt/$max_attempts): $(echo "$err" | head -1)"
+      sleep "$backoff"
+      backoff=$(( backoff * 2 ))
+      attempt=$(( attempt + 1 ))
+      continue
+    fi
+    # Non-retryable — surface stderr and exit
+    cat "$stderr_file" >&2
+    rm -f "$stderr_file"
+    return "$rc"
+  done
+  cat "$stderr_file" >&2
+  rm -f "$stderr_file"
+  return "$rc"
+}

@@ -432,6 +432,61 @@ ${recent_comments}
 - **Previous Agent:** ${last_agent}
 "
 
+  # ── Inject epic context for sub-card agents ────────────
+  # Builder, Reviewer, Tester, and Designer should all see the epic's PRD +
+  # Vision Fit so the work doesn't drift from the approved direction. We
+  # parse the epic id from the card body (Scout writes "**Epic:** #N" near
+  # the top) and pull in the PRD if it exists.
+  if [[ "$AGENT" == "builder" || "$AGENT" == "reviewer" || "$AGENT" == "tester" || "$AGENT" == "designer" ]]; then
+    local epic_id
+    epic_id=$(gh issue view "$CARD" --repo "$REPO" --json body \
+      --jq '.body' 2>/dev/null \
+      | grep -oiE '(\*\*Epic:?\*\*|Epic:|Parent epic:|Part of epic|Epic #)\s*#?[0-9]+' \
+      | grep -oE '[0-9]+' \
+      | head -1 || true)
+    if [[ -n "$epic_id" && "$epic_id" != "$CARD" ]]; then
+      local epic_prd_path
+      epic_prd_path=$(find "$HELIX_REPO_ROOT/docs/epics" -maxdepth 2 -name 'prd.md' -path "*${epic_id}-*/prd.md" 2>/dev/null | head -1 || true)
+      prompt+="
+## Epic Context
+- **Parent Epic:** #${epic_id}
+"
+      if [[ -n "$epic_prd_path" && -f "$epic_prd_path" ]]; then
+        prompt+="- **PRD:** \`${epic_prd_path}\` — Read this before doing any creative work. Pay particular attention to the **Vision Fit** section; your work on this sub-card must keep that fit intact (don't introduce features outside the named layer/domain/signature feature, and don't downgrade an interpretive surface to a generic list).
+"
+      else
+        prompt+="- **PRD:** not yet committed; read the epic issue body via \`gh issue view ${epic_id} --repo ${REPO} --json body\` for the PRD text. The Vision Fit section is non-negotiable scope.
+"
+      fi
+
+      # ── Mockup files (Builder primarily; Reviewer/Tester for context) ──
+      # The Designer's SwiftUI mockup files are the approved source of truth
+      # for layout, tokens, copy, and component composition. Surface their
+      # paths so the agent can Read them and structurally start from them.
+      local epic_mockup_dir
+      epic_mockup_dir=$(find "$HELIX_REPO_ROOT/helix-app/PreviewHost/Mockups" -maxdepth 1 -type d -name "${epic_id}-*" 2>/dev/null | head -1 || true)
+      if [[ -n "$epic_mockup_dir" && -d "$epic_mockup_dir" ]]; then
+        local mockup_files
+        mockup_files=$(find "$epic_mockup_dir" -type f -name '*.swift' 2>/dev/null | sort | sed 's|^|  - |')
+        if [[ -n "$mockup_files" ]]; then
+          if [[ "$AGENT" == "builder" ]]; then
+            prompt+="- **Designer mockups (USE THESE AS YOUR STARTING POINT):**
+${mockup_files}
+
+  These are real SwiftUI views the user already approved via screenshots. Copy the view's structure, modifier chains, tokens, microcopy, and SF Symbols verbatim into your shipping feature view; replace only the sample data with ViewModel bindings. Do NOT redesign — if a mockup is genuinely unshippable, comment on the card and request \`redesign-needed\` rather than silently deviating.
+"
+          else
+            prompt+="- **Designer mockups for reference:**
+${mockup_files}
+
+  Builder uses these as the structural starting point for shipping views. When reviewing or testing, compare the implemented view against these mockups for visual fidelity.
+"
+          fi
+        fi
+      fi
+    fi
+  fi
+
   # Add simulator/build rules (injected into EVERY agent prompt)
   prompt+="
 ## Simulator Rules

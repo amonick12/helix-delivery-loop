@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/aaronmonick/.claude/plugins/cache/local/helix-delivery-loop)",
+      "Read(//Users/aaronmonick/.claude/plugins/cache/local/helix-delivery-loop/**)"
+    ]
+  },
+  "enabledPlugins": {
+    "helix-delivery-loop@helix-loop": true
+  }
+}

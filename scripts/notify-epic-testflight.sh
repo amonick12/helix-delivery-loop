@@ -43,18 +43,54 @@ all_sub=$(echo "$status" | jq -r '.sub_cards[].number')
 #    Build number = (epic * 1000) + last_card_low, just to be unique vs sub-card uploads.
 BUILD_NUMBER=$(( EPIC * 1000 + last_card ))
 TF_LINK=""
+TF_OK="false"
 
 if [[ -x "/Users/aaronmonick/Downloads/helix/devtools/ios-agent/testflight-upload.sh" ]]; then
   echo "Uploading TestFlight build $BUILD_NUMBER for epic #$EPIC (PR #$last_pr)…" >&2
   if /Users/aaronmonick/Downloads/helix/devtools/ios-agent/testflight-upload.sh \
        --build-number "$BUILD_NUMBER" 2>/tmp/tf-epic-$EPIC.log; then
     TF_LINK=$(grep -oE 'https://testflight.apple.com/[^ ]+' /tmp/tf-epic-$EPIC.log | head -1)
-    [[ -z "$TF_LINK" ]] && TF_LINK="(check App Store Connect — link not parsed from log)"
+    if [[ -n "$TF_LINK" ]]; then
+      TF_OK="true"
+    else
+      TF_LINK="(TestFlight uploaded but link not parsed from log — check App Store Connect)"
+      TF_OK="true"  # Upload succeeded; link parse is cosmetic
+    fi
   else
-    TF_LINK="(TestFlight upload failed — see /tmp/tf-epic-$EPIC.log)"
+    TF_LINK="(TestFlight upload FAILED — see /tmp/tf-epic-$EPIC.log)"
+    TF_OK="false"
   fi
 else
   TF_LINK="(testflight-upload.sh not available — manual upload required)"
+  TF_OK="false"
+fi
+
+# 2b. If TestFlight upload failed, do NOT queue an approval email. Instead
+# queue a dead-letter so the user knows to retry, and label the last PR for
+# Builder rework. Sending an approval email pointing at a non-existent
+# TestFlight link is a contract violation.
+if [[ "$TF_OK" != "true" ]]; then
+  log_error "TestFlight upload failed for epic #$EPIC — escalating instead of emailing approval"
+  QUEUE_DIR="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
+  mkdir -p "$QUEUE_DIR"
+  DL_FILE="$QUEUE_DIR/dead-letter-${last_pr}.json"
+  if [[ ! -f "$DL_FILE" ]]; then
+    LOG_TAIL=$(tail -30 /tmp/tf-epic-$EPIC.log 2>/dev/null | head -c 4000 || echo "(no log captured)")
+    jq -n \
+      --arg to "$TO" \
+      --arg subject "[Helix] Epic #$EPIC TestFlight upload failed — manual review needed" \
+      --arg body "TestFlight upload for epic #$EPIC (build $BUILD_NUMBER, last PR #$last_pr) failed. The approval email was NOT sent. Resolve the upload error then re-trigger via \`/delivery-loop releaser\` or by removing the \`rework\` label.\n\n**Last PR:** https://github.com/$REPO/pull/$last_pr\n**Last 30 lines of upload log:**\n\n\`\`\`\n${LOG_TAIL}\n\`\`\`" \
+      --arg card "$last_pr" \
+      --arg agent "releaser" \
+      --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      '{to:$to, subject:$subject, body:$body, card:($card|tonumber), agent:$agent, fail_count:1, kind:"testflight-upload-failed", created_at:$created_at, sent:false}' \
+      > "$DL_FILE"
+    log_warn "Queued TestFlight-failure email at $DL_FILE"
+  fi
+  gh pr edit "$last_pr" --repo "$REPO" --add-label "rework" 2>/dev/null || true
+  gh pr ready "$last_pr" --repo "$REPO" --undo 2>/dev/null || true
+  echo '{"epic":'"$EPIC"',"ready_for_testflight":true,"testflight_uploaded":false,"reason":"TestFlight upload failed; queued dead-letter, did not send approval email"}'
+  exit 0
 fi
 
 # 3. Gather screenshot URLs from all sub-card PR bodies.
@@ -117,11 +153,24 @@ fi
 # 5. Add the gate label on the last sub-card PR.
 gh pr edit "$last_pr" --repo "$REPO" --add-label "epic-testflight-pending" 2>/dev/null || true
 
-# 6. Queue the email for the orchestrator to send via Gmail MCP.
-#    Shell scripts cannot invoke MCP tools directly — the /delivery-loop
-#    orchestrator scans this queue at every dispatch and sends each pending
-#    payload via mcp__claude_ai_Gmail__send_message (or whatever tool name the
-#    server publishes once OAuth completes).
+# 6. Collect each sub-card's screenshot URLs into a manifest so the
+#    orchestrator's pre-email vision QA pass can Read them with vision and
+#    veto the email if anything looks broken.
+SCREENSHOT_URLS=$(echo "$all_sub" | while read -r sub; do
+  pr=$(gh pr list --repo "$REPO" --state all --search "linked:issue-$sub" \
+    --json number --limit 1 --jq '.[0].number // empty')
+  [[ -z "$pr" ]] && continue
+  gh pr view "$pr" --repo "$REPO" --json body --jq '.body' 2>/dev/null \
+    | grep -oE 'https://github\.com/'"$REPO"'/releases/download/screenshots/[^"]+\.(png|jpg|jpeg)' \
+    | sort -u
+done | jq -R . | jq -s '.')
+
+# 7. Queue the email for the orchestrator to send via Gmail MCP.
+#    Two gates before sending: vision_qa_passed must be true (orchestrator
+#    runs the pass at drain time) AND sent must be false. Shell scripts
+#    can't invoke vision LLMs directly, so we hand the orchestrator the
+#    screenshot URLs and quality-bar criteria; it Reads each URL and flips
+#    vision_qa_passed once the panels are clean.
 QUEUE_DIR="${EPIC_EMAIL_QUEUE_DIR:-/tmp/helix-epic-emails-pending}"
 mkdir -p "$QUEUE_DIR"
 QUEUE_FILE="$QUEUE_DIR/epic-$EPIC.json"
@@ -132,9 +181,10 @@ jq -n \
   --arg epic "$EPIC" \
   --arg pr "$last_pr" \
   --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{to:$to, subject:$subject, body:$body, epic:($epic|tonumber), last_pr:($pr|tonumber), created_at:$created_at, sent:false}' \
+  --argjson screenshots "$SCREENSHOT_URLS" \
+  '{to:$to, subject:$subject, body:$body, epic:($epic|tonumber), last_pr:($pr|tonumber), created_at:$created_at, sent:false, vision_qa_passed:false, vision_qa_retries:0, screenshots:$screenshots, kind:"testflight"}' \
   > "$QUEUE_FILE"
-echo "Queued email at $QUEUE_FILE — orchestrator will dispatch via Gmail MCP." >&2
+echo "Queued email at $QUEUE_FILE — orchestrator will run vision QA, then dispatch via Gmail MCP." >&2
 
 # 7. Comment on the epic announcing the gate.
 gh issue comment "$EPIC" --repo "$REPO" --body "bot: **TestFlight gate active.** All sub-cards merged or ready. Final PR #$last_pr labeled \`epic-testflight-pending\`. TestFlight build $BUILD_NUMBER uploaded; email queued for $TO via Gmail MCP. Add \`epic-final-approved\` to PR #$last_pr after testing on device." 2>/dev/null || true

@@ -120,6 +120,16 @@
       "started": "2026-04-16T03:26:44Z",
       "ended": null,
       "duration_sec": 0
+    },
+    {
+      "agent": "releaser",
+      "model": null,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cost_usd": 0,
+      "started": "2026-04-19T21:24:06Z",
+      "ended": null,
+      "duration_sec": 0
     }
   ],
   "totals": {

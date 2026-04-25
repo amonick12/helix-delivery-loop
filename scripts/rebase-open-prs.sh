@@ -59,7 +59,7 @@ CONFLICTS="[]"
 
 # ── Fetch latest autodev ──────────────────────────────
 if [[ "$DRY_RUN" != "1" ]]; then
-  git -C "$REPO_ROOT" fetch origin "$BASE_BRANCH" --quiet 2>/dev/null || true
+  git -C "$HELIX_REPO_ROOT" fetch origin "$BASE_BRANCH" --quiet 2>/dev/null || true
 fi
 
 # ── Process each PR ───────────────────────────────────
@@ -88,16 +88,16 @@ while IFS= read -r pr_json; do
   CLEANUP_WT=false
 
   # Check if there is an existing worktree for this branch
-  EXISTING_WT=$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -B1 "branch refs/heads/$BRANCH_NAME" | head -1 | sed 's/^worktree //' || echo "")
+  EXISTING_WT=$(git -C "$HELIX_REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -B1 "branch refs/heads/$BRANCH_NAME" | head -1 | sed 's/^worktree //' || echo "")
 
   if [[ -n "$EXISTING_WT" && -d "$EXISTING_WT" ]]; then
     WORK_DIR="$EXISTING_WT"
   else
     # Create temp worktree
-    git -C "$REPO_ROOT" worktree add "$TEMP_WT" "$BRANCH_NAME" 2>/dev/null || {
+    git -C "$HELIX_REPO_ROOT" worktree add "$TEMP_WT" "$BRANCH_NAME" 2>/dev/null || {
       # Branch might only exist on remote
-      git -C "$REPO_ROOT" fetch origin "$BRANCH_NAME" --quiet 2>/dev/null || true
-      git -C "$REPO_ROOT" worktree add "$TEMP_WT" -b "$BRANCH_NAME" "origin/$BRANCH_NAME" 2>/dev/null || {
+      git -C "$HELIX_REPO_ROOT" fetch origin "$BRANCH_NAME" --quiet 2>/dev/null || true
+      git -C "$HELIX_REPO_ROOT" worktree add "$TEMP_WT" -b "$BRANCH_NAME" "origin/$BRANCH_NAME" 2>/dev/null || {
         log_warn "Could not create worktree for PR #$PR_NUM ($BRANCH_NAME)"
         CONFLICTS=$(echo "$CONFLICTS" | jq --argjson num "$PR_NUM" --arg branch "$BRANCH_NAME" --arg reason "Could not create worktree" '. + [{number: $num, branch: $branch, reason: $reason}]')
         continue
@@ -122,20 +122,23 @@ while IFS= read -r pr_json; do
     log_warn "Rebase conflict on PR #$PR_NUM ($BRANCH_NAME)"
     git -C "$WORK_DIR" rebase --abort 2>/dev/null || true
 
-    # Post comment about conflict
+    # Post comment + label so the dispatcher routes Builder to fix it
     MERGED_PR_NOTE=""
     if [[ -n "$EXCLUDE_PR" ]]; then
       MERGED_PR_NOTE=" after merge of #$EXCLUDE_PR"
     fi
-    gh pr comment "$PR_NUM" --repo "$REPO" --body "**Rebase conflict${MERGED_PR_NOTE}** — Builder needs to resolve conflicts with \`$BASE_BRANCH\`." 2>/dev/null || \
+    gh pr comment "$PR_NUM" --repo "$REPO" --body "bot: **Rebase conflict${MERGED_PR_NOTE}** — Builder needs to resolve conflicts with \`$BASE_BRANCH\`. Routed to Builder via \`rebase-conflict\` label." 2>/dev/null || \
       log_warn "Could not post conflict comment on PR #$PR_NUM"
+    gh pr edit "$PR_NUM" --repo "$REPO" --add-label "rebase-conflict" --add-label "rework" 2>/dev/null || true
+    # Convert to draft so Reviewer/Tester don't pick up an unmergable PR
+    gh pr ready "$PR_NUM" --repo "$REPO" --undo 2>/dev/null || true
 
     CONFLICTS=$(echo "$CONFLICTS" | jq --argjson num "$PR_NUM" --arg branch "$BRANCH_NAME" --arg reason "Rebase conflict" '. + [{number: $num, branch: $branch, reason: $reason}]')
   fi
 
   # Clean up temp worktree
   if [[ "$CLEANUP_WT" == "true" && -d "$TEMP_WT" ]]; then
-    git -C "$REPO_ROOT" worktree remove "$TEMP_WT" --force 2>/dev/null || rm -rf "$TEMP_WT"
+    git -C "$HELIX_REPO_ROOT" worktree remove "$TEMP_WT" --force 2>/dev/null || rm -rf "$TEMP_WT"
   fi
 
 done < <(echo "$OPEN_PRS" | jq -c '.[]')

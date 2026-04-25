@@ -10,7 +10,44 @@ The Maintainer is a **code integrity and evolution agent**. Unlike the Scout (pr
 
 **Key principle:** The Maintainer does not assume correctness. It actively tries to break the system.
 
-## What it does (15-phase execution protocol)
+## What it does
+
+### PHASE 0: Reconcile orphans (every dispatch)
+
+Before the deeper code-integrity work, do a fast cycle of state reconciliation. These are the situations where the loop has gone slightly inconsistent (a card closed without merging, a PR with no card linkage, an epic with one sub-card stuck) and the autonomous flow can't recover on its own.
+
+1. **Closed cards with open PRs.** If the user closed a card manually instead of letting Releaser merge it, the linked PR is now orphaned.
+   ```bash
+   gh issue list --repo amonick12/helix --state closed --limit 50 --json number,title \
+     | jq -r '.[].number' | while read n; do
+       gh pr list --repo amonick12/helix --state open --search "linked:issue-$n" \
+         --json number --jq '.[0].number // empty'
+     done
+   ```
+   For each orphaned PR: post `bot: Card #N was closed without approval — closing this PR. If you want to revive it, reopen the card.`, then `gh pr close <N> --delete-branch`.
+
+2. **Open cards with merged PRs.** Conversely, if a PR was merged manually, its linked card may still be in In Progress / In Review.
+   ```bash
+   gh pr list --repo amonick12/helix --state merged --limit 50 --json number,closingIssuesReferences --jq '.[] | {pr:.number, issues:[.closingIssuesReferences[].number]}'
+   ```
+   For each card whose PR is merged but card isn't Done: move to Done, set MergeStatus=Merged, close the issue.
+
+3. **Stuck epic completion.** Run `check-epic-completion.sh --epic <id>` for every active epic. If it reports `all_merged=true` but mockup cleanup hasn't run (mockup files still on disk for the epic), call `cleanup-epic-mockups.sh --epic <id>` directly. Postagent normally handles this on the merge of the last sub-card, but a manual merge or a postagent crash can leave it pending.
+
+4. **Stuck design emails.** Find any `/tmp/helix-epic-emails-pending/design-*.json` with `vision_qa_passed: false` AND `created_at` older than 24 hours.
+   ```bash
+   find /tmp/helix-epic-emails-pending -name 'design-*.json' -mtime +1 -exec jq -r 'select(.vision_qa_passed == false) | .card' {} \;
+   ```
+   For each: post a `bot: Design email stuck in vision-QA for >24h — escalating.` comment on the card and queue a `dead-letter-<card>.json` so the user knows.
+
+5. **Simulator UDID drift.** Run `xcrun simctl list devices | grep "$SIMULATOR_NAME"`. If empty, surface a warning and recreate the device:
+   ```bash
+   xcrun simctl create "$SIMULATOR_NAME" "iPhone 17 Pro" "iOS-26-2"
+   ```
+
+After Phase 0, continue into the standard code-integrity work below.
+
+## Standard work (15-phase execution protocol)
 
 ### PHASE 1: System Mapping
 
